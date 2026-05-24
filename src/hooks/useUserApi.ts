@@ -84,6 +84,22 @@ export function useUpdatePushToken() {
   );
 }
 
+export function useLogoutDriver() {
+  const { makeApiCall } = useApiClient();
+  return useMutation<void, Error>({
+    async mutationFn() {
+      return await makeApiCall({
+        url: "logout-driver",
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+    },
+  });
+}
+
 export function useSetDriverPhoto() {
   const { makeApiCall } = useApiClient();
   return useMutation<
