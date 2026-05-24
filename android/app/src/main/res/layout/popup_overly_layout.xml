@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/rounded_background"
+    android:padding="16dp">
+
+    <!-- Header: category name + optional exclusive badge -->
+    <LinearLayout
+        android:id="@+id/headerLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toStartOf="@id/closeButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/categoryTypeText"
+            style="@style/Popup.Text.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="Swift" />
+
+        <TextView
+            android:id="@+id/exclusiveTagText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/exclusive_tag_background"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:textColor="@color/popup_text_primary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:text="Exclusive"
+            android:visibility="visible" />
+
+    </LinearLayout>
+
+    <!-- Close button — 48dp tap target, icon padded inward -->
+    <ImageButton
+        android:id="@+id/closeButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@android:color/transparent"
+        android:contentDescription="Close"
+        android:padding="12dp"
+        android:src="@drawable/ic_close"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/popup_text_primary" />
+
+    <!-- Price -->
+    <TextView
+        android:id="@+id/priceText"
+        style="@style/Popup.Text.Price"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/headerLayout"
+        tools:text="$12.50" />
+
+    <!-- Rating -->
+    <TextView
+        android:id="@+id/ratingText"
+        style="@style/Popup.Text.Body"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/priceText"
+        tools:text="★ 4.8" />
+
+    <!-- Net fee note -->
+    <TextView
+        android:id="@+id/netFeeText"
+        style="@style/Popup.Text.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Net of service fee"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/ratingText" />
+
+    <!-- Pickup section -->
+    <TextView
+        android:id="@+id/pickupDistanceText"
+        style="@style/Popup.Text.Caption"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/netFeeText"
+        tools:text="Pickup · 2 min away" />
+
+    <TextView
+        android:id="@+id/pickupLocationText"
+        style="@style/Popup.Text.Body"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/pickupDistanceText"
+        tools:text="Airport Hotels" />
+
+    <!-- Dropoff section -->
+    <TextView
+        android:id="@+id/dropoffDistanceText"
+        style="@style/Popup.Text.Caption"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/pickupLocationText"
+        tools:text="Dropoff · 45 min" />
+
+    <TextView
+        android:id="@+id/dropoffLocationText"
+        style="@style/Popup.Text.Body"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dropoffDistanceText"
+        tools:text="Main Street Mall" />
+
+    <!-- Long trip warning — shown programmatically when applicable -->
+    <TextView
+        android:id="@+id/longTripText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:drawablePadding="6dp"
+        android:text="Long trip (60+ min)"
+        android:textColor="@color/popup_text_primary"
+        android:textSize="14sp"
+        android:visibility="gone"
+        app:drawableStartCompat="@drawable/ic_warning"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dropoffLocationText"
+        tools:visibility="gone" />
+
+    <!-- Divider — properly constrained on all sides -->
+    <View
+        android:id="@+id/divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:background="@color/popup_divider"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/longTripText" />
+
+    <!-- Confirm button — chained below divider -->
+    <Button
+        android:id="@+id/confirmButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:backgroundTint="@color/popup_accent"
+        android:letterSpacing="0"
+        android:text="Confirm"
+        android:textAllCaps="false"
+        android:textColor="@color/popup_text_primary"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/divider" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,57 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/FiraCode-Bold.ttf",
+      "sha1": "42194bba413b032551077e3fa4e2144500fe5083"
+    },
+    {
+      "path": "assets/fonts/FiraCode-Light.ttf",
+      "sha1": "bf63a0d6e2bd696295b0d51deeb484fe1236db68"
+    },
+    {
+      "path": "assets/fonts/FiraCode-Medium.ttf",
+      "sha1": "fe22b1c83efbb35efb77aa515c90b8674fd9991d"
+    },
+    {
+      "path": "assets/fonts/FiraCode-Regular.ttf",
+      "sha1": "8530335bb596211350eae108e9844352fcc3dcab"
+    },
+    {
+      "path": "assets/fonts/FiraCode-Retina.ttf",
+      "sha1": "cdb0fb2372ac36d3972943fb0cc25f0a93d12e4b"
+    },
+    {
+      "path": "assets/fonts/FiraCode-SemiBold.ttf",
+      "sha1": "da17de68bce1fb2b8370f3aadb1a289e0bb84a40"
+    },
+    {
+      "path": "assets/fonts/FontAwesome5_Pro_Brands.ttf",
+      "sha1": "741838d6381cbb601c1f84c8fb72210680bb4d68"
+    },
+    {
+      "path": "assets/fonts/FontAwesome5_Pro_Light.ttf",
+      "sha1": "a5fb122c386aadd40adc07b1ad223544184ffce8"
+    },
+    {
+      "path": "assets/fonts/FontAwesome5_Pro_Regular.ttf",
+      "sha1": "b4865e35948af7764d2c7e48f7b371e24c288ac2"
+    },
+    {
+      "path": "assets/fonts/FontAwesome5_Pro_Solid.ttf",
+      "sha1": "6c0ee96df648c38fb75ed2196af8807ae8483b21"
+    },
+    {
+      "path": "assets/fonts/Inter-Bold.otf",
+      "sha1": "8695a535aeb3a548a028f4f2826c445b8f4a236e"
+    },
+    {
+      "path": "assets/fonts/Inter-Regular.otf",
+      "sha1": "3c3c30029d17aea3bfdad5b0523d3fea7d5a4a81"
+    },
+    {
+      "path": "assets/fonts/Inter-SemiBold.otf",
+      "sha1": "55fd541147ff1255b3ea22acff74f20ceb8e9087"
+    }
+  ]
+}

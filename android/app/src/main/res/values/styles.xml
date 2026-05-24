@@ -1,0 +1,38 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+  <style name="AppTheme" parent="Theme.EdgeToEdge.Material3">
+    <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+    <item name="colorPrimary">@color/colorPrimary</item>
+    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:windowLightNavigationBar">false</item>
+    <item name="enforceNavigationBarContrast">false</item>
+  </style>
+  <style name="Theme.App.SplashScreen" parent="AppTheme">
+    <item name="android:windowBackground">@drawable/ic_launcher_background</item>
+  </style>
+
+  <!-- Popup overlay text styles -->
+  <style name="Popup" />
+  <style name="Popup.Text" />
+
+  <style name="Popup.Text.Title">
+    <item name="android:textColor">@color/popup_text_primary</item>
+    <item name="android:textSize">18sp</item>
+    <item name="android:textStyle">bold</item>
+  </style>
+
+  <style name="Popup.Text.Price">
+    <item name="android:textColor">@color/popup_text_primary</item>
+    <item name="android:textSize">36sp</item>
+    <item name="android:textStyle">bold</item>
+  </style>
+
+  <style name="Popup.Text.Body">
+    <item name="android:textColor">@color/popup_text_primary</item>
+    <item name="android:textSize">16sp</item>
+  </style>
+
+  <style name="Popup.Text.Caption">
+    <item name="android:textColor">@color/popup_text_secondary</item>
+    <item name="android:textSize">14sp</item>
+  </style>
+</resources>

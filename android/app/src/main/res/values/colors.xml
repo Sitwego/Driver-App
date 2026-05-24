@@ -1,0 +1,14 @@
+<resources>
+  <color name="splashscreen_background">#0F2424</color>
+  <color name="iconBackground">#ffffff</color>
+  <color name="colorPrimary">#023c69</color>
+  <color name="colorPrimaryDark">#ffffff</color>
+
+  <!-- Popup overlay -->
+  <color name="popup_background">#0f1e24</color>
+  <color name="popup_text_primary">#FFFFFF</color>
+  <color name="popup_text_secondary">#CCCCCC</color>
+  <color name="popup_divider">#333333</color>
+  <color name="popup_accent">#29d9c2</color>
+  <color name="popup_tag_exclusive">#0a85ff</color>
+</resources>

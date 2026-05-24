@@ -1,0 +1,278 @@
+apply plugin: "com.android.application"
+apply plugin: 'com.google.gms.google-services'
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+apply plugin: "com.google.protobuf"
+
+def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def packageJson = new groovy.json.JsonSlurper().parseText(file("$projectRoot/package.json").text)
+
+/**
+ * This is the configuration block to customize your React Native Android app.
+ * By default you don't need to apply any configuration, just uncomment the lines you need.
+ */
+react {
+    entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute"].execute(null, rootDir).text.trim())
+    reactNativeDir = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+    // hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
+    hermesCommand = new File(["node", "--print", "require.resolve('hermes-compiler/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/hermesc/%OS-BIN%/hermesc"
+    codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+
+    enableBundleCompression = (findProperty('android.enableBundleCompression') ?: false).toBoolean()
+    // Use Expo CLI to bundle the app, this ensures the Metro config
+    // works correctly with Expo projects.
+    cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
+    bundleCommand = "export:embed"
+
+    /* Folders */
+     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
+    // root = file("../../")
+    //   The folder where the react-native NPM package is. Default is ../../node_modules/react-native
+    // reactNativeDir = file("../../node_modules/react-native")
+    //   The folder where the react-native Codegen package is. Default is ../../node_modules/@react-native/codegen
+    // codegenDir = file("../../node_modules/@react-native/codegen")
+
+    /* Variants */
+    //   The list of variants to that are debuggable. For those we're going to
+    //   skip the bundling of the JS bundle and the assets. By default is just 'debug'.
+    //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
+    // debuggableVariants = ["liteDebug", "prodDebug"]
+
+    /* Bundling */
+    //   A list containing the node command and its flags. Default is just 'node'.
+    // nodeExecutableAndArgs = ["node"]
+
+    //
+    //   The path to the CLI configuration file. Default is empty.
+    // bundleConfig = file(../rn-cli.config.js)
+    //
+    //   The name of the generated asset file containing your JS bundle
+    // bundleAssetName = "MyApplication.android.bundle"
+    //
+    //   The entry file for bundle generation. Default is 'index.android.js' or 'index.js'
+    // entryFile = file("../js/MyApplication.android.js")
+    //
+    //   A list of extra flags to pass to the 'bundle' commands.
+    //   See https://github.com/react-native-community/cli/blob/main/docs/commands.md#bundle
+    // extraPackagerArgs = []
+
+    /* Hermes Commands */
+    //   The hermes compiler command to run. By default it is 'hermesc'
+    // hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
+    //
+    //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
+    // hermesFlags = ["-O", "-output-source-map"]
+
+    /* Autolinking */
+    autolinkLibrariesWithApp()
+}
+
+/**
+ * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ */
+def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: false).toBoolean()
+
+/**
+ * The preferred build flavor of JavaScriptCore (JSC)
+ *
+ * For example, to use the international variant, you can use:
+ * `def jscFlavor = 'org.webkit:android-jsc-intl:+'`
+ *
+ * The international variant includes ICU i18n library and necessary data
+ * allowing to use e.g. `Date.toLocaleString` and `String.localeCompare` that
+ * give correct results when using with locales other than en-US. Note that
+ * this variant is about 6MiB larger per architecture than default.
+ */
+def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+
+// Load local.properties (gitignored) for secrets; fall back to gradle.properties placeholders.
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) { localProps.load(new FileInputStream(localPropsFile)) }
+def localProp = { key -> localProps.getProperty(key) ?: findProperty(key) ?: '' }
+
+android {
+    ndkVersion "29.0.14206865" // "28.2.13676358"
+    buildToolsVersion "35.0.0"
+     compileSdk 36
+
+    namespace 'com.transli.mobilitycaptain'
+    defaultConfig {
+        applicationId 'com.transli.mobilitycaptain'
+        minSdkVersion 27
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 37
+        versionName packageJson.version
+        resValue "string", "expo_runtime_version", packageJson.version
+    }
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        release {
+            storeFile file(localProp('RELEASE_STORE_FILE'))
+            storePassword localProp('RELEASE_STORE_PASSWORD')
+            keyAlias localProp('RELEASE_KEY_ALIAS')
+            keyPassword localProp('RELEASE_KEY_PASSWORD')
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+            buildConfigField "String", "REST_API_BASE_URL", "\"${localProp('DEBUG_REST_API_BASE_URL')}\""
+            buildConfigField "String", "LOCATION_UPDATE_ENDPOINT", "\"${localProp('DEBUG_LOCATION_UPDATE_ENDPOINT')}\""
+            buildConfigField "String", "GRPC_SERVER_URL", "\"${localProp('DEBUG_GRPC_SERVER_URL')}\""
+        }
+        release {
+            signingConfig signingConfigs.release
+            shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+            buildConfigField "String", "REST_API_BASE_URL", "\"${localProp('RELEASE_REST_API_BASE_URL')}\""
+            buildConfigField "String", "LOCATION_UPDATE_ENDPOINT", "\"${localProp('RELEASE_LOCATION_UPDATE_ENDPOINT')}\""
+            buildConfigField "String", "GRPC_SERVER_URL", "\"${localProp('RELEASE_GRPC_SERVER_URL')}\""
+        }
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+            pickFirsts += ['**/libmmkv.so']
+        }
+       resources.excludes.add("META-INF/versions/9/OSGI-INF/MANIFEST.MF")
+        resources.excludes += "COPYRIGHT.txt"
+    }
+    androidResources {
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+    externalNativeBuild {
+        cmake {
+            version "3.22.1"
+        }
+    }
+}
+
+
+protobuf {
+    protoc { artifact = 'com.google.protobuf:protoc:3.21.7' }
+    plugins {
+        grpc { artifact = 'io.grpc:protoc-gen-grpc-java:1.76.0' }
+    }
+
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins {
+                java { option 'lite' }
+            }
+            task.plugins {
+                grpc {
+                    option 'lite'
+                }
+            }
+        }
+    }
+}
+
+// Apply static values from `gradle.properties` to the `android.packagingOptions`
+// Accepts values in comma delimited lists, example:
+// android.packagingOptions.pickFirsts=/LICENSE,**/picasa.ini
+["pickFirsts", "excludes", "merges", "doNotStrip"].each { prop ->
+    // Split option: 'foo,bar' -> ['foo', 'bar']
+    def options = (findProperty("android.packagingOptions.$prop") ?: "").split(",");
+    // Trim all elements in place.
+    for (i in 0..<options.size()) options[i] = options[i].trim();
+    // `[] - ""` is essentially `[""].filter(Boolean)` removing all empty strings.
+    options -= ""
+
+    if (options.length > 0) {
+        println "android.packagingOptions.$prop += $options ($options.length)"
+        // Ex: android.packagingOptions.pickFirsts += '**/SCCS/**'
+        options.each {
+            android.packagingOptions[prop] += it
+        }
+    }
+}
+
+dependencies {
+    // The version of react-native is set by the React Native Gradle Plugin
+    implementation("com.facebook.react:react-android")
+
+    def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
+    def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
+    def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true";
+
+    if (isGifEnabled) {
+        // For animated gif support
+        implementation("com.facebook.fresco:animated-gif:${expoLibs.versions.fresco.get()}")
+    }
+
+    if (isWebpEnabled) {
+        // For webp support
+        implementation("com.facebook.fresco:webpsupport:${expoLibs.versions.fresco.get()}")
+        if (isWebpAnimatedEnabled) {
+            // Animated webp support
+            implementation("com.facebook.fresco:animated-webp:${expoLibs.versions.fresco.get()}")
+        }
+    }
+
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
+    }
+     // GRPC Dependencies
+    implementation 'io.grpc:grpc-okhttp:1.76.0' // CURRENT_GRPC_VERSION
+    implementation 'io.grpc:grpc-protobuf-lite:1.76.0' // CURRENT_GRPC_VERSION
+    implementation 'io.grpc:grpc-stub:1.76.0' // CURRENT_GRPC_VERSION
+    // https://mvnrepository.com/artifact/io.grpc/grpc-android
+    implementation 'io.grpc:grpc-android:1.76.0'
+    implementation 'org.apache.tomcat:annotations-api:6.0.53'
+
+    // https://mvnrepository.com/artifact/com.google.code.gson/gson
+    implementation("com.google.code.gson:gson:2.13.2")
+
+    // https://mvnrepository.com/artifact/com.google.android.gms/play-services-location
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
+
+    // googleMaps
+    implementation 'com.google.android.gms:play-services-maps:19.2.0' // Latest version
+    implementation 'com.google.maps.android:android-maps-utils:3.19.1' // Or latest version
+    implementation platform('com.google.firebase:firebase-bom:34.5.0')
+    implementation 'com.google.firebase:firebase-analytics'
+
+    implementation 'com.squareup.okhttp3:okhttp:5.3.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:5.3.0'
+
+    // kalman filter algo
+    implementation project(':madlocationmanager')
+
+    // MMKV - must match the version react-native-mmkv compiles its native .so against
+    implementation "io.github.zhongwuzw:mmkv:2.3.0"
+    // https://mvnrepository.com/artifact/io.github.resilience4j/resilience4j-retry
+    implementation("io.github.resilience4j:resilience4j-retry:1.7.1")
+    implementation 'io.github.resilience4j:resilience4j-vavr:2.3.0' // For Try/Supplier support (recommended)
+}
+
+// Ensure react-native-nitro-modules is fully built before CMake configures react-native-mmkv.
+// On a clean build the prefab config for NitroModules has no .so reference until after the
+// native library is compiled, so build ordering must be enforced explicitly.
+afterEvaluate {
+    tasks.configureEach { task ->
+        if (task.name.startsWith('configureCMake') || task.name.startsWith('generateJsonModel')) {
+            task.dependsOn(':react-native-nitro-modules:prepareHeaders')
+        }
+    }
+
+    project(':react-native-mmkv').tasks.configureEach { task ->
+        if (task.name.startsWith('configureCMake') || task.name.startsWith('generateJsonModel')) {
+            if (task.name.toLowerCase().contains('debug')) {
+                task.dependsOn(':react-native-nitro-modules:externalNativeBuildDebug')
+            } else {
+                task.dependsOn(':react-native-nitro-modules:externalNativeBuildRelease')
+            }
+        }
+    }
+}

@@ -1,0 +1,147 @@
+syntax = "proto3";
+package rides_events;
+// import "google/protobuf/timestamp.proto";
+
+//Message for Driver event request
+message DriverEventRequest {
+  string driver_id = 1;
+  string session_token = 2;
+  string last_event_id = 3;
+}
+
+//Message for Rider event request
+message RiderEventRequest {
+  string rider_id = 1;
+  string session_token = 2;
+  string last_event_id = 3;
+}
+
+//Event message for ride events
+message RideEvent {
+  string event_id = 1;
+  int64 timestamp = 2;
+  string event_type = 3;
+  // Metadata for routing
+  string ride_id = 4;
+  string driver_id = 5;
+  string rider_id = 6;
+  EventPriority priority = 7;
+  // Optional acknowledgment required
+  bool ack_required = 8;
+
+  // Event-specific payloads
+  oneof event_payload {
+    RideCancelEvent ride_cancel = 9;
+    RideEndEvent ride_end = 10;
+    RideStartEvent ride_start = 11;
+    DriverArrivedEvent driver_arrived = 12;
+    FareChangeEvent fare_change = 13;
+    LocationUpdateEvent location_update = 14;
+  }
+  // REQUIRED: For process tracing  
+  // string correlation_id: 15,    // NEVER NULL
+  // OPTIONAL: For direct causation
+  // string causation_id: 16,  // Which event caused this one?
+}
+
+// Event priority levels
+enum EventPriority {
+  LOW = 0;
+  NORMAL = 1;
+  HIGH = 2;
+  CRITICAL = 3;
+}
+
+// Event-specific payloads
+message RideCancelEvent {
+  string reason = 1;
+  CancelSource canceled_by = 2;
+  double refund_amount = 3;
+  string cancellation_fee = 4;
+  string note = 5;
+}
+
+enum CancelSource {
+  RIDER = 0;
+  DRIVER = 1;
+  SYSTEM = 2;
+  DISPATCH = 3;
+}
+
+message RideEndEvent {
+  double final_fare = 1;
+  double distance_km = 2;
+  int64 duration_seconds = 3;
+  Location end_location = 4;
+  Rating rider_rating = 5;
+  Rating driver_rating = 6;
+}
+
+message RideStartEvent {
+  Location start_location = 1;
+  Location destination = 2;
+  double estimated_fare = 3;
+  string vehicle_type = 4;
+  string vehicle_number = 5;
+  DriverInfo driver_info = 6;
+  int64 estimated_duration = 7;
+}
+
+// Event when driver arrives at pickup location
+message DriverArrivedEvent {
+  Location arrival_location = 1;
+  int64 actual_arrival_time = 2;
+  int64 wait_time_seconds = 3;
+}
+
+// Event when fare changes during the ride
+message FareChangeEvent {
+  double old_fare = 1;
+  double new_fare = 2;
+  string reason = 3;
+  repeated FareBreakdown breakdown = 4;
+}
+
+message LocationUpdateEvent {
+  Location location = 1;
+  double speed_kph = 2;
+  double bearing = 3;
+  int64 location_time = 4;
+  int32 accuracy = 5;
+}
+
+message Rating {
+  int32 score = 1;
+  string comment = 2;
+  repeated string tags = 3;
+}
+
+message DriverInfo {
+  string driver_id = 1;
+  string name = 2;
+  string phone = 3;
+  string photo_url = 4;
+  double rating = 5;
+  string license_plate = 6;
+}
+
+message FareBreakdown {
+  string type = 1;
+  double amount = 2;
+  string description = 3;
+}
+message Location {
+  double latitude = 1;
+  double longitude = 2;
+  string address = 3;
+  string place_id = 4;
+}
+
+//Ride event notification message
+service RideEventService {
+  // Streams events to driver
+  rpc StreamDriverEvents(stream DriverEventRequest) returns (stream RideEvent);
+
+  // for rider events
+  rpc StreamRiderEvents(RiderEventRequest) returns (stream RideEvent);
+}
