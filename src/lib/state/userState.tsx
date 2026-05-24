@@ -1,9 +1,22 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getAuth } from "@react-native-firebase/auth";
+import { useQueryClient } from "@tanstack/react-query";
 import React, { useCallback, useEffect } from "react";
 
 import usePolling from "~/hooks/usePoling";
-import { useCreateDriver, useLoginDriver } from "~/hooks/useUserApi";
+import {
+  useCreateDriver,
+  useLoginDriver,
+  useLogoutDriver,
+} from "~/hooks/useUserApi";
 
-import { userStore, vehicleCategoryStore } from "../store";
+import {
+  locationStore,
+  rideStore,
+  travelPreferencesStore,
+  userStore,
+  vehicleCategoryStore,
+} from "../store";
 
 import { reducer } from "./reducer";
 import {
@@ -55,6 +68,8 @@ export const UserStateProvider: React.FC<React.PropsWithChildren> = ({
 }) => {
   const { mutateAsync: createAccount } = useCreateDriver();
   const { mutateAsync: loginDriver } = useLoginDriver();
+  const { mutateAsync: logoutDriver } = useLogoutDriver();
+  const queryClient = useQueryClient();
   const [state, setState] = React.useReducer(reducer, null, () => {
     const driver = userStore.get(["user"]);
     if (driver) {
@@ -135,11 +150,34 @@ export const UserStateProvider: React.FC<React.PropsWithChildren> = ({
     });
   }, []);
 
+  const logout = useCallback(async () => {
+    // Notify backend — fire-and-forget, never block the local logout on failure
+    logoutDriver().catch(() => {});
+
+    // Firebase sign out
+    getAuth()
+      .signOut()
+      .catch(() => {});
+
+    // Wipe all MMKV stores
+    userStore.clearAll();
+    rideStore.clearAll();
+    vehicleCategoryStore.clearAll();
+    travelPreferencesStore.clearAll();
+    locationStore.clearAll();
+
+    // Clear React Query in-memory cache and its AsyncStorage mirror
+    queryClient.clear();
+    AsyncStorage.removeItem("queryClient-logged-out").catch(() => {});
+
+    // Update in-memory state — nativeStackNavigationWithAuth will redirect to <LoggedOut />
+    setState({ type: "LOGOUT", payload: undefined });
+  }, [logoutDriver, queryClient]);
+
   useEffect(() => {
     if (state.shouldPersist) {
-      state.shouldPersist = false;
-      // Persist the state to the store
-      userStore.set(["user"], state);
+      const { shouldPersist: _, ...persistedState } = state;
+      userStore.set(["user"], persistedState as Driver);
     }
   }, [state]);
 
@@ -158,14 +196,12 @@ export const UserStateProvider: React.FC<React.PropsWithChildren> = ({
       completeOnBoarding,
       updateProfile,
       login,
-      logout: () => {
-        throw new Error("Function not implemented.");
-      },
-      deleteAccount: (account) => {
+      logout,
+      deleteAccount: (_account) => {
         throw new Error("Function not implemented.");
       },
     }),
-    [_createAccount, completeOnBoarding, login, updateProfile],
+    [_createAccount, completeOnBoarding, login, logout, updateProfile],
   ) as DriverStateApiContext;
   return (
     <StateContext.Provider value={_state}>

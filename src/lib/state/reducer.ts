@@ -51,10 +51,10 @@ export const reducer = (state: State, action: Action) => {
       };
     case "LOGOUT":
       return {
-        ...state,
         isLoggedIn: false,
         profile_id: "",
         token: "",
+        shouldPersist: false,
       };
     case "UPDATE_PROFILE":
       return {

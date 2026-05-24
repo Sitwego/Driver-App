@@ -1,15 +1,18 @@
 import { useFocusEffect } from "@react-navigation/native";
-import { memo, useCallback, useRef } from "react";
-import { ScrollView } from "react-native-gesture-handler";
 import { PressableScale as Pressable } from "pressto";
+import { memo, useCallback, useRef } from "react";
+import { Alert, StyleSheet } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import Icon from "~/components/Icons";
 import RnText from "~/components/RnText";
 import { RnView } from "~/components/RnView";
+import { useUserApi } from "~/lib/state/userState";
 import { s } from "~/styles/Common-Styles";
+
 import { useAppTheme } from "../theme/ThemeProvider";
-import Icon from "~/components/Icons";
 import { atoms } from "../theme/atoms";
-import { StyleSheet } from "react-native";
 import { themes } from "../theme/theme_utils";
 
 const data = [
@@ -54,6 +57,14 @@ export const AccountSettings = memo(function AccountSettings({
   const insets = useSafeAreaInsets();
   const scrollview = useRef<ScrollView>(null);
   const { colors, fonts } = useAppTheme();
+  const { logout } = useUserApi();
+
+  const handleLogout = useCallback(() => {
+    Alert.alert("Log out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Log out", style: "destructive", onPress: () => logout() },
+    ]);
+  }, [logout]);
 
   const navigate = useCallback(
     (route: string) => {
@@ -136,7 +147,7 @@ export const AccountSettings = memo(function AccountSettings({
         </RnView>
       </ScrollView>
       <RnView style={[{ bottom: insets.bottom + 70 }]}>
-        <Pressable>
+        <Pressable onPress={handleLogout}>
           <RnText
             style={[
               atoms.text_md,

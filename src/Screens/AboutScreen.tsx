@@ -1,13 +1,14 @@
+import { PressableScale as Pressable } from "pressto";
 import { ScrollView, Linking, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PressableScale as Pressable } from "pressto";
+
+import Icon from "~/components/Icons";
 import RnText from "~/components/RnText";
 import { RnView } from "~/components/RnView";
-import { s } from "~/styles/Common-Styles";
-import { atoms } from "~/ui/theme/atoms";
-import Icon from "~/components/Icons";
-import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { NavigationProps } from "~/navigation/types";
+import { s } from "~/styles/Common-Styles";
+import { useAppTheme } from "~/ui/theme/ThemeProvider";
+import { atoms } from "~/ui/theme/atoms";
 import { themes } from "~/ui/theme/theme_utils";
 
 const APP_VERSION = "0.0.1";

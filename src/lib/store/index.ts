@@ -76,6 +76,10 @@ export class Storage<Scopes extends unknown[], Schema> {
     keys.forEach((key) => this.remove([...scopes, key]));
   }
 
+  clearAll() {
+    this.store.clearAll();
+  }
+
   /**
    * Fires a callback when the storage associated with a given key changes
    *

@@ -1,11 +1,12 @@
 import React, { memo, useCallback, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { s } from "~/styles/Common-Styles";
+
 import { Pager, PagerRef } from "~/components/Page/Pager";
-import { AboutDriver } from "~/ui/Views/AboutDriver";
-import { AccountSettings } from "~/ui/Views/AccountSettings";
 import { PageTabBar } from "~/components/Page/PagerHeader";
 import { RnView } from "~/components/RnView";
+import { s } from "~/styles/Common-Styles";
+import { AboutDriver } from "~/ui/Views/AboutDriver";
+import { AccountSettings } from "~/ui/Views/AccountSettings";
 
 export const AccountMenuScreen: React.FC<any> = memo(({ navigation }: any) => {
   const pagerRef = React.useRef<PagerRef>(null);
