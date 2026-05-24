@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit --project tsconfig.json)",
+      "Bash(npx prettier --write src/Screens/SubscriptionPlanDetailsScreen.tsx)",
+      "Bash(npx prettier --write src/Screens/SubscriptionActiveManagementScreen.tsx src/navigation/types.ts)",
+      "Bash(npx prettier --write src/Screens/PaymentScreen.tsx)",
+      "Bash(sed -i 's/import { showToast } from \"\"~\\\\/components\\\\/Toast\"\"/import { showSuccessToast } from \"\"~\\\\/components\\\\/Toast\"\"/' \"c:/mobility-captain/src/Screens/EditPersonalDetails.tsx\")",
+      "Bash(sed -i 's/showToast\\(\"\"Personal details saved successfully\"\"\\)/showSuccessToast\\(\"\"Personal details saved successfully\"\"\\)/' \"c:/mobility-captain/src/Screens/EditPersonalDetails.tsx\")",
+      "Bash(python -c \":*)",
+      "Bash(yarn add @react-native-firebase/app@^23.8.6 @react-native-firebase/auth@^23.8.6 @react-native-firebase/messaging@^23.8.6)",
+      "Bash(\"c:/mobility-captain/assets/svgs/brand-logo-white.svg\":*)",
+      "Bash(rustup toolchain:*)",
+      "Bash(docker builder:*)",
+      "Bash(docker image:*)",
+      "Bash(docker volume:*)",
+      "Bash(docker system df:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "argent"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/mobility-customer/src/hooks/**)",
+      "mcp__argent",
+      "Read(//c/mobility-customer/**)",
+      "Bash(git add *)"
+    ],
+    "additionalDirectories": [
+      "C:\\mobility-customer\\src\\hooks",
+      "C:\\mobility-customer\\android\\app"
+    ]
+  }
+}

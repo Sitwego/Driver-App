@@ -30,7 +30,7 @@ import { height as screenHeight } from "~/utils/metrics/dimm";
 
 const TARGET_SCREEN_PERCENTAGE = 0.951;
 const LATITUDE_DELTA = 0.159999; // Adjust for desired zoom level (city-level zoom)
-const DEFAULT_ZOOM = 15.9;
+const DEFAULT_ZOOM = 16;
 
 // Module-level camera cache — survives component remounts
 // let _cachedCamera: Camera | null = null;
