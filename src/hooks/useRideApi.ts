@@ -7,7 +7,7 @@ import {
   initialRideStatus,
 } from "~/lib/Providers/UseRideRequestProvider";
 import { useUserState } from "~/lib/state/userState";
-import { locationStore, rideStore, useStorage } from "~/lib/store";
+import { locationStore, rideStore } from "~/lib/store";
 import { RideNotificationType } from "~/types/rideRequstTypes";
 import { GeoPoint, getLocationAsync } from "~/utils/geo";
 
@@ -73,18 +73,29 @@ export function useCreateRideRequestMutation() {
   const { rideState } = useRideRequest();
   const { makeApiCall } = useApiClient();
   const userState = useUserState();
-  const [overtimeCharge] = useStorage(rideStore, ["overtimeCharge"]);
   const ride = useMemo(() => {
     return (rideState as { ride: RideNotificationType })?.ride;
   }, [rideState]);
-
   const driver_is_on_free_trial = useMemo(
     () => userState?.isOnFreeTrial,
     [userState?.isOnFreeTrial],
   );
+
   return useMutation({
-    async mutationFn({ start_otp }: { start_otp: string }) {
+    async mutationFn({
+      start_otp,
+      waiting_charge,
+      toll,
+      extra_dx,
+    }: {
+      start_otp: string;
+      waiting_charge: number;
+      toll: number;
+      extra_dx: number;
+    }) {
       const coordinates = (await getLocationAsync()).coords;
+
+      console.log("Fare component for create ride request:", waiting_charge);
       return await makeApiCall({
         url: `create-ride/${driver_is_on_free_trial!}`,
         method: "POST",
@@ -104,9 +115,9 @@ export function useCreateRideRequestMutation() {
             lon: ride.data.to.geo_point.longitude,
           },
           fare_component: {
-            waiting_charge: overtimeCharge ?? 0,
-            toll: 0,
-            extra_dx: 0,
+            waiting_charge,
+            toll,
+            extra_dx,
           },
         },
       });

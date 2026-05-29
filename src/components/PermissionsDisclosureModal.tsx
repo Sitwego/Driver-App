@@ -29,7 +29,7 @@ const PERMISSION_ITEMS = [
     label: "Location",
     required: true,
     description:
-      "This app collects location data to enhance your use of our apps, including to improve pick-up locations, enable safety features, and prevent and detect fraud even when the app is closed or not in use.",
+      "Your location is shared continuously — including when the app is in the background or closed — so you can receive nearby ride requests, let passengers track your journey in real time, and ensure accurate fare calculation.",
   },
   {
     icon: "Bell" as const,
@@ -148,7 +148,7 @@ function PermissionsStep({ onConfirm }: { onConfirm: () => Promise<void> }) {
   );
 }
 
-function BackgroundLocationStep({
+export function BackgroundLocationStep({
   onConfirm,
   onCancel,
 }: {
@@ -165,7 +165,7 @@ function BackgroundLocationStep({
         </RnText>
 
         <RnText style={styles.dialogDesc}>
-          To ensure accurate fare calculation and reliable ride tracking even if
+          To ensure accurate fare calculation and recieve ride request even if
           the app has been closed or stopped, please select &apos;Allow all the
           time&apos; for background location access.
         </RnText>

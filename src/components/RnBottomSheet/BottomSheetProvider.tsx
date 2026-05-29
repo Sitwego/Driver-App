@@ -17,7 +17,6 @@ type CMP = {
   showOtpSheet: () => void;
   endRide: () => Promise<void>;
   setArrived: () => Promise<void>;
-  hasRideStarted: boolean;
 };
 export type ACTBottomSheetProps = {
   itemHeight?: number;

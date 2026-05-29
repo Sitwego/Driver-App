@@ -1,7 +1,8 @@
 /* eslint-disable react/display-name */
 import React, { ForwardedRef, useContext, useMemo, useRef } from "react";
-import DocumentModal from "./DocumentModal";
+
 import { IABottomSheetProvider } from "./DocModalType";
+import DocumentModal from "./DocumentModal";
 
 const Context = React.createContext<IABottomSheetProvider>({
   show: function (): void {},

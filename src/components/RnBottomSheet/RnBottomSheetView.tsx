@@ -9,6 +9,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -53,6 +54,7 @@ import { makePhoneCall } from "~/utils/open_uri";
 
 import Icon from "../Icons";
 import RnText from "../RnText";
+import { useOvertimeCharge } from "../TimerComponent";
 
 import { ACTBottomSheetProps } from "./BottomSheetProvider";
 import { ChatBottomSheet } from "./ChatBottomSheet";
@@ -91,6 +93,12 @@ const RnBottomSheetView = forwardRef(
     const { mutateAsync: setDriverArrivedMutation } = useSetDriverArrived();
     const { colors } = useAppTheme();
     const { rideState } = useRideRequest();
+
+    const overtimeCharge = useOvertimeCharge();
+    const overtimeChargeRef = useRef(overtimeCharge);
+    useLayoutEffect(() => {
+      overtimeChargeRef.current = overtimeCharge;
+    });
 
     const hasRideStarted = rideStatus?.rideStatus?.hasRideStarted;
 
@@ -210,10 +218,20 @@ const RnBottomSheetView = forwardRef(
 
     const confirmOtp = useCallback(
       async (otp: string) => {
-        console.log("Confirming OTP:", otp);
-        await startRide({ start_otp: otp });
+        console.log(
+          "Confirming OTP:",
+          otp,
+          "Overtime charge:",
+          overtimeChargeRef.current,
+        );
+        await startRide({
+          start_otp: otp,
+          waiting_charge: Number(overtimeChargeRef.current) || 0,
+          toll: 0,
+          extra_dx: 0,
+        });
         sheetRef.current?.resize(0);
-        return setRideStatus({
+        setRideStatus({
           type: "UPDATE_RIDE_STATUS",
           payload: {
             hasRideStarted: true,
@@ -254,12 +272,11 @@ const RnBottomSheetView = forwardRef(
         data?.cmp
           ? data.cmp({
               showOtpSheet,
-              hasRideStarted,
               endRide,
               setArrived: setDriverArrived,
             })
           : null,
-      [data, showOtpSheet, hasRideStarted, endRide, setDriverArrived],
+      [data, showOtpSheet, endRide, setDriverArrived],
     );
 
     useEffect(() => {

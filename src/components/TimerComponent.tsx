@@ -1,4 +1,11 @@
-import React, { useEffect, memo, useMemo, useState, useRef } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  memo,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import { StyleSheet } from "react-native";
 import Animated, {
   useSharedValue,
@@ -36,24 +43,30 @@ const formatElapsed = (totalSeconds: number): string => {
  * required for React Compiler compatibility (mutating a value returned from
  * another hook is not allowed).
  */
-function useElapsedTimer(arrivedAt: number | undefined, isRunning: boolean) {
+function useElapsedTimer(
+  arrivedAt: number | undefined,
+  isRunning: boolean,
+  hasRideStarted: boolean,
+) {
   const formattedTime = useSharedValue("00:00");
 
   useEffect(() => {
     if (!arrivedAt) {
-      formattedTime.value = "00:00";
-      return;
-    }
-    if (!isRunning) {
-      // Ride has started — freeze on the last elapsed value, don't reset.
+      // Guard: don't wipe the display if arrivedAt is transiently undefined
+      // during a state update while the ride is already underway.
+      if (!hasRideStarted) formattedTime.value = "00:00";
       return;
     }
 
-    // Compute immediately — no waiting for the first interval tick.
-    // Correct elapsed time on every mount/remount (navigation, app restart, etc.).
+    // Always write the elapsed value immediately — both when starting the
+    // interval and when freezing after ride start. This means a remount
+    // (e.g. bottom-sheet content recreation) restores the correct value
+    // instead of staying at the useSharedValue initializer "00:00".
     formattedTime.value = formatElapsed(
       Math.floor((Date.now() - arrivedAt) / 1000),
     );
+
+    if (!isRunning) return;
 
     // setInterval is BackgroundTimer.setInterval on Android (patched in index.ts),
     // so this keeps ticking even when the app is backgrounded.
@@ -64,7 +77,7 @@ function useElapsedTimer(arrivedAt: number | undefined, isRunning: boolean) {
     }, 1000);
 
     return () => clearInterval(timerId);
-  }, [arrivedAt, isRunning, formattedTime]);
+  }, [arrivedAt, isRunning, hasRideStarted, formattedTime]);
 
   return formattedTime;
 }
@@ -105,7 +118,9 @@ export function useOvertimeCharge(): number {
   // Always-current charge value accessible inside the effect without adding
   // `charge` to the dependency array (which would restart the interval).
   const chargeRef = useRef(charge);
-  chargeRef.current = charge;
+  useLayoutEffect(() => {
+    chargeRef.current = charge;
+  });
 
   useEffect(() => {
     if (hasRideStarted) {
@@ -116,7 +131,6 @@ export function useOvertimeCharge(): number {
     }
 
     if (!arrivedAt || !isRunning) {
-      setCharge(0);
       return;
     }
 
@@ -135,20 +149,18 @@ export function useOvertimeCharge(): number {
     return () => clearInterval(timerId);
   }, [arrivedAt, isRunning, hasRideStarted, persistCharge]);
 
-  return charge;
+  return (arrivedAt && isRunning) || hasRideStarted ? charge : 0;
 }
 
 const TimerComponent: React.FC = () => {
   const { rideStatus } = useRideRequestStatus();
 
+  const hasRideStarted = rideStatus?.rideStatus?.hasRideStarted ?? false;
+
   const isRunning = useMemo(
     () =>
-      (rideStatus?.rideStatus?.hasDriverArrived ?? false) &&
-      !(rideStatus?.rideStatus?.hasRideStarted ?? false),
-    [
-      rideStatus?.rideStatus?.hasDriverArrived,
-      rideStatus?.rideStatus?.hasRideStarted,
-    ],
+      (rideStatus?.rideStatus?.hasDriverArrived ?? false) && !hasRideStarted,
+    [rideStatus?.rideStatus?.hasDriverArrived, hasRideStarted],
   );
 
   // Prefer the context value (live state); fall back to the persisted store key
@@ -159,7 +171,7 @@ const TimerComponent: React.FC = () => {
     [rideStatus?.rideStatus?.arrivedAt],
   );
 
-  const formattedTime = useElapsedTimer(arrivedAt, isRunning);
+  const formattedTime = useElapsedTimer(arrivedAt, isRunning, hasRideStarted);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withTiming(isRunning ? 1.1 : 1, { duration: 300 }) }],

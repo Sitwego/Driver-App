@@ -1,4 +1,9 @@
 /* eslint-disable react/display-name */
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
+import { BottomSheetDefaultBackdropProps } from "@gorhom/bottom-sheet/lib/typescript/components/bottomSheetBackdrop/types";
 import { useBackHandler } from "@react-native-community/hooks";
 import React, {
   forwardRef,
@@ -9,18 +14,15 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { JSX } from "react/jsx-runtime";
 import { Keyboard, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import BottomSheet, {
-  BottomSheetBackdrop,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
-import { BottomSheetDefaultBackdropProps } from "@gorhom/bottom-sheet/lib/typescript/components/bottomSheetBackdrop/types";
-import { JSX } from "react/jsx-runtime";
+
+import { s } from "~/styles/Common-Styles";
+import { ANIMATION_CONFIG } from "~/ui/animations";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { height } from "~/utils/metrics/dimm";
-import { ANIMATION_CONFIG } from "~/ui/animations";
-import { s } from "~/styles/Common-Styles";
+
 import { IABottomSheetProps } from "./DocModalType";
 
 interface Props {

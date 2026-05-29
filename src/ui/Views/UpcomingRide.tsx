@@ -24,14 +24,12 @@ import { themes } from "../theme/theme_utils";
 
 type Props = {
   showOtpSheet: () => void;
-  hasRideStarted: boolean;
   setArrived: () => Promise<void>;
   endRide: () => Promise<void>;
 };
 
 export const UpcomingRideInfo = memo(function UpcomingRideInfo({
   showOtpSheet,
-  hasRideStarted,
   setArrived,
 }: Props) {
   const { fonts } = useAppTheme();
@@ -44,6 +42,7 @@ export const UpcomingRideInfo = memo(function UpcomingRideInfo({
   // Direct access — no computation, no benefit from useMemo
   const _ride_data = rideState?.ride?.data;
   const hasDriverArrived = rideStatus?.rideStatus.hasDriverArrived;
+  const hasRideStarted = rideStatus?.rideStatus?.hasRideStarted ?? false;
 
   const formartedDx = useMemo(
     () => roundToOneDecimal(_ride_data?.distance ?? 0),

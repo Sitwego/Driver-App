@@ -37,7 +37,6 @@ import { atoms } from "~/ui/theme/atoms";
 import { themes } from "~/ui/theme/theme_utils";
 import { isPaymentDue } from "~/utils/dates/sub_expiry";
 import { isNowBeforeOrEqual } from "~/utils/dates/utils";
-import { getLocationAsync } from "~/utils/geo";
 
 import { sharedStackScreens } from "../stack";
 
@@ -139,6 +138,7 @@ function TabBar({ state, descriptors, navigation }: any) {
   }, [categoryPlans, nav]);
 
   const showReturnButton = React.useCallback(() => {
+    "use no memo";
     setShowReturnBtn(true);
     returnBtnOpacity.value = withSpring(1, { damping: 20, stiffness: 200 });
     returnBtnTranslateY.value = withSpring(0, { damping: 20, stiffness: 200 });
@@ -146,6 +146,7 @@ function TabBar({ state, descriptors, navigation }: any) {
   }, [returnBtnOpacity, returnBtnTranslateY, returnBtnScale]);
 
   const hideReturnButton = React.useCallback(() => {
+    "use no memo";
     returnBtnOpacity.value = withTiming(0, { duration: 180 });
     returnBtnTranslateY.value = withTiming(10, { duration: 180 });
     returnBtnScale.value = withTiming(0.85, { duration: 180 });
@@ -194,9 +195,11 @@ function TabBar({ state, descriptors, navigation }: any) {
     },
     [goOffline, goOnline, userState.profile_id, userState.rating],
   );
+
   React.useEffect(() => {
     if (rideState?.ride && !isOnduty) {
-      cb(true);
+      const t = setTimeout(() => cb(true), 0);
+      return () => clearTimeout(t);
     }
   }, [cb, isOnduty, rideState?.ride]);
 
