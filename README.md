@@ -2,6 +2,8 @@
 
 Android app for Sitwego Drivers. Built with React Native + Expo.
 
+📲 **[Download on Google Play](https://play.google.com/store/apps/details?id=com.transli.mobilitycaptain)**
+
 ---
 
 ## Stack
