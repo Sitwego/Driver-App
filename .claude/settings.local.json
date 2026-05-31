@@ -14,7 +14,15 @@
       "Bash(docker builder:*)",
       "Bash(docker image:*)",
       "Bash(docker volume:*)",
-      "Bash(docker system df:*)"
+      "Bash(docker system df:*)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(xargs grep -ln \"enum PermissionStatus\")",
+      "Bash(yarn tsc *)",
+      "Bash(yarn eslint *)",
+      "PowerShell(\"User ANDROID_HOME:   \" + [Environment]::GetEnvironmentVariable\\('ANDROID_HOME','User'\\); \"Machine ANDROID_HOME:\" + [Environment]::GetEnvironmentVariable\\('ANDROID_HOME','Machine'\\); \"Process ANDROID_HOME:\" + $env:ANDROID_HOME; \"Process PATH has platform-tools: \" + \\($env:Path -match 'platform-tools'\\))",
+      "Bash('C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe' -s RZ8M91D2CEA shell ps -A)",
+      "Bash(npx tsc *)"
     ]
   },
   "enableAllProjectMcpServers": true,

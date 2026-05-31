@@ -10,6 +10,7 @@ import {
   useLogoutDriver,
 } from "~/hooks/useUserApi";
 
+import { locationPermissionStore } from "../location/LocationPermissionService";
 import {
   locationStore,
   rideStore,
@@ -165,6 +166,9 @@ export const UserStateProvider: React.FC<React.PropsWithChildren> = ({
     vehicleCategoryStore.clearAll();
     travelPreferencesStore.clearAll();
     locationStore.clearAll();
+    // Reset one-shot location-disclosure flags so the next driver on this
+    // device sees the permission flow again.
+    locationPermissionStore.clearAll();
 
     // Clear React Query in-memory cache and its AsyncStorage mirror
     queryClient.clear();

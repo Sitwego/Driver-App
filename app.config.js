@@ -46,12 +46,25 @@ module.exports = {
             notificationTitle: 'Sitwego Captain',
             notificationBody: 'Tracking your location in the background',
           },
+          // iOS Info.plist usage descriptions. These strings are shown verbatim
+          // in the system permission dialogs and are required by App Store review.
+          locationWhenInUsePermission:
+            'Sitwego Captain uses your location to match you with nearby ride requests and let passengers track your trip in real time.',
+          locationAlwaysAndWhenInUsePermission:
+            'Sitwego Captain needs all-the-time location access to keep receiving ride requests and to keep passengers updated even when the app is in the background.',
+          locationAlwaysPermission:
+            'Sitwego Captain needs all-the-time location access to keep receiving ride requests and to keep passengers updated even when the app is in the background.',
         },
       ],
       'expo-image',
     ],
     ios: {
       supportsTablet: true,
+      infoPlist: {
+        // Required for continued location updates while backgrounded (live
+        // driver tracking / trip tracking). Pairs with the "always" permission.
+        UIBackgroundModes: ['location', 'fetch'],
+      },
     },
     android: {
       package: 'com.transli.mobilitycaptain',

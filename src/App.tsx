@@ -12,6 +12,7 @@ import RootRouter from "./components/router/router";
 import { useInAppUpdates } from "./hooks/useInAppUpdates";
 import { useNotificationHandler } from "./hooks/useNotificationHandler";
 import { DriverSettingsProvider } from "./lib/Providers/DriverSettingsProvider";
+import { LocationGateProvider } from "./lib/Providers/LocationGateProvider";
 import { LoggedOutProvider } from "./lib/Providers/LoggedoutProvider";
 import { Provider as DefaultPortal } from "./lib/Providers/Portal";
 import { RemoteConfigProvider } from "./lib/Providers/RemoteConfigProvider";
@@ -55,9 +56,11 @@ const InnerApp = () => {
   return (
     <GestureHandlerRootView style={[styles.container]}>
       <GestureDetectorProvider>
-        <RootRouter />
-        <ToastComponent />
-        <OfflineIndicator />
+        <LocationGateProvider enabled={!!state.token}>
+          <RootRouter />
+          <ToastComponent />
+          <OfflineIndicator />
+        </LocationGateProvider>
       </GestureDetectorProvider>
     </GestureHandlerRootView>
   );
