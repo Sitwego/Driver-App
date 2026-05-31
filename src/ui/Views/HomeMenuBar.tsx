@@ -28,7 +28,6 @@ interface Props {
 
 const HomeMenuBar: React.FC<Props> = ({ onPress }) => {
   const state = useUserState();
-  console.log("HomeMenuBar: user state", state);
   const { colors, fonts } = useAppTheme();
   const { top } = useSafeAreaInsets();
   const onLoad = useCallback(() => {}, []);
