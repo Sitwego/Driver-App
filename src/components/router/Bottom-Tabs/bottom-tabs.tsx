@@ -109,9 +109,8 @@ function TabBar({ state, descriptors, navigation }: any) {
 
   const isFreeTrialExpired = React.useMemo(
     () =>
-      userState.isOnFreeTrial &&
-      isNowBeforeOrEqual(userState.free_trial_end_date),
-    [userState.isOnFreeTrial, userState.free_trial_end_date],
+      !userState.plan_id && isNowBeforeOrEqual(userState.free_trial_end_date),
+    [userState.plan_id, userState.free_trial_end_date],
   );
 
   const { last_billed_at, plan_end_date, amount_due } = userState;
