@@ -31,4 +31,6 @@ export type InputViewType =
   | "CertificateOfGoodConduct"
   | "IndentityDocs"
   | "PsvBadge"
-  | "InspectionSticker";
+  | "InspectionSticker"
+  | "Insurance"
+  | "Kra";

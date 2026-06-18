@@ -6,7 +6,18 @@ export type DocTypes =
   | "idImageBack"
   | "driverLicense"
   | "certificateOfGoodConductFromDCI"
-  | "psvBadge";
+  | "psvBadge"
+  | "insurance"
+  | "kraPin";
+
+/**
+ * Two/three-wheelers (boda & tuk-tuk) have a different required-document set
+ * than cars: they skip the PSV badge and inspection sticker but must provide
+ * motorcycle/auto insurance.
+ */
+export function isTwoOrThreeWheeler(vehicleType: string): boolean {
+  return vehicleType === "Bike" || vehicleType === "Auto";
+}
 
 export type FileUploadResponseType = {
   id: string;
@@ -43,11 +54,13 @@ export type ControlsContextType = {
     certificateOfGoodConductExpiry: string;
     psvBadge: FileUploadResponseType;
     psvBadgeExpiry: string;
-    // kraFile: FileUploadResponseType;
-    inspection?: FileUploadResponseType;
-    inspectionExpiry?: string;
-    psvInsurance?: FileUploadResponseType;
-    psvInsuranceExpiry?: string;
+    inspection: FileUploadResponseType;
+    inspectionExpiry: string;
+    // Motorcycle / auto insurance — required for boda & tuk-tuk only.
+    insurance: FileUploadResponseType;
+    insuranceExpiry: string;
+    // KRA PIN certificate — optional for all vehicle types.
+    kraPin: FileUploadResponseType;
   };
 };
 export type DocFormType = Pick<ControlsContextType, "docs">;
@@ -84,7 +97,7 @@ export const initialState: ControlsContextType = {
     vehicle_type: "",
     make: "",
     model: "",
-    year: 2014,
+    year: 2013,
     capacity: 0,
     license_plate: "",
     color: "",
@@ -118,17 +131,30 @@ export const initialState: ControlsContextType = {
       nonce: [],
       encrypted_key: [],
     },
-    // kraFile: {
-    //   id: "",
-    //   nonce: [],
-    // },
     certificateOfGoodConductExpiry: toSimpleDateString(new Date()),
     psvBadge: {
       id: "",
       nonce: [],
       encrypted_key: [],
     },
+    inspection: {
+      id: "",
+      nonce: [],
+      encrypted_key: [],
+    },
+    inspectionExpiry: toSimpleDateString(new Date()),
     psvBadgeExpiry: toSimpleDateString(new Date()),
+    insurance: {
+      id: "",
+      nonce: [],
+      encrypted_key: [],
+    },
+    insuranceExpiry: toSimpleDateString(new Date()),
+    kraPin: {
+      id: "",
+      nonce: [],
+      encrypted_key: [],
+    },
   },
 };
 

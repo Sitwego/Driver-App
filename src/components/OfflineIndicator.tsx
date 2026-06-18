@@ -9,12 +9,14 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import useNetwork from "~/hooks/useNetwork";
-import { themes } from "~/ui/theme/theme_utils";
-import Icon from "./Icons";
-import RnText from "./RnText";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
+import { themes } from "~/ui/theme/theme_utils";
+
+import Icon from "./Icons";
+import RnText from "./RnText";
 
 const FADE_DURATION = 250;
 /** Delay before showing so brief blips don't flash the modal */

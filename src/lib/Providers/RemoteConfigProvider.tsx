@@ -104,6 +104,8 @@ export function RemoteConfigProvider({ children }: { children: ReactNode }) {
       // In dev, Remote Config holds production URLs — skip the fetch entirely
       // and use the compile-time dev defaults (BuildConfig / DEFAULTS).
       if (__DEV__) {
+        DEFAULTS.FILE_BASE_URL =
+          "https://nymphaeaceous-viscometrically-freeda.ngrok-free.dev/";
         setFileBaseUrl(DEFAULTS.FILE_BASE_URL);
         // Pass empty strings so native keeps its BuildConfig debug defaults.
         NativeModules.AppConfig?.update("", DEFAULTS.API_BASE_URL, "");

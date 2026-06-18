@@ -347,7 +347,7 @@ const RnBottomSheetView = forwardRef(
       <>
         {children}
         <ReanimatedTrueSheet
-          detents={[0.45, 1]}
+          detents={[0.46, 1]}
           name="RIDE-SHEET"
           ref={sheetRef}
           dismissible={true}

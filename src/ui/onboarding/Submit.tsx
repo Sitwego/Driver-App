@@ -20,9 +20,8 @@ import { useAppTheme } from "../theme/ThemeProvider";
 import { atoms } from "../theme/atoms";
 
 import { OnboardingControls } from "./OnBoardingControls";
-import { useOnboardingControls } from "./state";
+import { isTwoOrThreeWheeler, useOnboardingControls } from "./state";
 import { isControlsContextEmpty } from "./utils";
-import { st } from "~/components/SubscriptionPlans";
 
 type InfoRowProps = {
   label: string;
@@ -76,6 +75,9 @@ export function SubmitData() {
   const { mutateAsync: cert_of_good_conduct } = useCreateVehicleDocuments();
   const { mutateAsync: drivingLicense } = useCreateVehicleDocuments();
   const { mutateAsync: psvBadge } = useCreateVehicleDocuments();
+  const { mutateAsync: vhIspectionSticker } = useCreateVehicleDocuments();
+  const { mutateAsync: insurance } = useCreateVehicleDocuments();
+  const { mutateAsync: kraPin } = useCreateVehicleDocuments();
   const { mutateAsync: vehicle_info } = useCreateVehicleInfo();
   const { mutateAsync: setProfilePhoto } = useSetDriverPhoto();
   const { mutateAsync: setHasCompletedOnboarding } =
@@ -101,6 +103,21 @@ export function SubmitData() {
           expiry: state.docs.psvBadgeExpiry,
           document_type: "PsvBadge",
         };
+        const vh_ispection_sticker = {
+          ...state.docs.inspection,
+          expiry: state.docs.inspectionExpiry,
+          document_type: "VehicleInspectionSticker",
+        };
+        const vehicle_insurance = {
+          ...state.docs.insurance,
+          expiry: state.docs.insuranceExpiry,
+          document_type: "PsvInsurance",
+        };
+        const kra_pin = {
+          ...state.docs.kraPin,
+          expiry: "",
+          document_type: "Kra",
+        };
         const identuty_document = {
           id_number: state.docs.idNo,
           id_type: state.docs.idType,
@@ -125,7 +142,19 @@ export function SubmitData() {
 
         await cert_of_good_conduct(good_conduct);
         await drivingLicense(dl);
-        await psvBadge(psv);
+
+        // Insurance is required for every vehicle type; cars additionally
+        // submit the PSV badge + inspection sticker.
+        await insurance(vehicle_insurance);
+        if (!isTwoOrThreeWheeler(state.vehicleDetails.vehicle_type)) {
+          await psvBadge(psv);
+          await vhIspectionSticker(vh_ispection_sticker);
+        }
+
+        // KRA PIN is optional — only submit when the driver uploaded one.
+        if (state.docs.kraPin.id.trim() !== "") {
+          await kraPin(kra_pin);
+        }
 
         const hasErrors = results.some((r) => r.status === "rejected");
         if (!hasErrors) {
@@ -144,15 +173,20 @@ export function SubmitData() {
       completeOnBoarding,
       drivingLicense,
       indentityDocuments,
+      insurance,
+      kraPin,
       psvBadge,
       setHasCompletedOnboarding,
       setProfilePhoto,
       vehicle_info,
+      vhIspectionSticker,
     ],
   );
 
   const isComplete = useMemo(() => !isControlsContextEmpty(_), [_]);
   const { vehicleDetails } = _;
+  const isMotoOrAuto = isTwoOrThreeWheeler(vehicleDetails.vehicle_type);
+  const kraUploaded = _.docs.kraPin.id.trim() !== "";
 
   return (
     <RnView style={[s.flex1]}>
@@ -240,9 +274,33 @@ export function SubmitData() {
           <RnView style={[{ gap: 12 }]}>
             <DocCheckRow label="Identity Document" colors={colors} />
             <DocCheckRow label="Profile Photo" colors={colors} />
-            <DocCheckRow label="Driving License" colors={colors} />
+            <DocCheckRow
+              label={
+                isMotoOrAuto
+                  ? "Motorcycle Driving Licence (Class A)"
+                  : "Driving License"
+              }
+              colors={colors}
+            />
             <DocCheckRow label="Certificate of Good Conduct" colors={colors} />
-            <DocCheckRow label="PSV Badge" colors={colors} />
+            <DocCheckRow
+              label={
+                isMotoOrAuto ? "Motorcycle/Auto Insurance" : "PSV Insurance"
+              }
+              colors={colors}
+            />
+            {!isMotoOrAuto && (
+              <>
+                <DocCheckRow label="PSV Badge" colors={colors} />
+                <DocCheckRow
+                  label="Vehicle Inspection Sticker"
+                  colors={colors}
+                />
+              </>
+            )}
+            {kraUploaded && (
+              <DocCheckRow label="KRA PIN Certificate" colors={colors} />
+            )}
           </RnView>
         </RnView>
       </ScrollView>

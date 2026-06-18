@@ -21,7 +21,7 @@ type InspectionState = {
 };
 
 export function VehicleInspectionSticker() {
-  const { uploadFile } = useFileUpload();
+  const { uploadFile, isUploading } = useFileUpload();
   const { dispatch, state } = useOnboardingControls();
   const { colors } = useAppTheme();
   const { hide } = useDocuments();
@@ -101,6 +101,7 @@ export function VehicleInspectionSticker() {
         value={inspection.inspectionUri}
         label="Inspection Sticker Photo"
         onChange={handleUpload}
+        isUploading={isUploading}
       />
       <FooterButton disabled={isAllFilled} onClose={onSave} />
     </RnView>

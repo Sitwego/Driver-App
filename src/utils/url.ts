@@ -1,8 +1,9 @@
 // ─── Mutable file-server base URL ref ────────────────────────────────────────
-// Initialised to the compile-time fallback. RemoteConfigProvider overwrites
-// this once at startup, before any component renders. Never persisted to disk.
+// Initialised to the compile-time fallback from the environment.
+// RemoteConfigProvider overwrites this once at startup, before any component
+// renders. Never persisted to disk.
 
-let _fileBaseUrl = "https://backend-api.sitwego.xyz/";
+let _fileBaseUrl = process.env.EXPO_PUBLIC_FILE_BASE_URL ?? "";
 
 /** Called once by RemoteConfigProvider after Remote Config is fetched. */
 export function setFileBaseUrl(url: string): void {

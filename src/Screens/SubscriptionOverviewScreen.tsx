@@ -15,20 +15,21 @@ import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
 import { themes } from "~/ui/theme/theme_utils";
 import { formatDate } from "~/utils/dates/formatDate";
+import { getCategoryFromPlanId } from "~/utils/subscription";
 
 import type {
   ActiveSubscription,
   RootStackNavigationType,
-  SubscriptionOverviewScreenProps,
+  // SubscriptionOverviewScreenProps,
 } from "~/navigation/types";
 
-export function SubscriptionOverviewScreen({
-  route,
-}: SubscriptionOverviewScreenProps) {
+export function SubscriptionOverviewScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackNavigationType>>();
-  const { category } = route.params;
   const userState = useUserState();
+  const vehicle_type = userState.plan_id
+    ? getCategoryFromPlanId(userState.plan_id)
+    : "Taxi";
   const activeSub = useMemo(() => {
     return {
       plan_id: userState?.plan_id,
@@ -36,33 +37,36 @@ export function SubscriptionOverviewScreen({
       next_billing_date: formatDate(userState?.plan_end_date || ""),
     } as ActiveSubscription;
   }, [userState?.plan_id, userState?.plan_end_date]);
-  const { fonts, colors } = useAppTheme();
+  const { fonts } = useAppTheme();
   const insets = useSafeAreaInsets();
   const opacity = useFadeIn();
 
-  const categoryPlans = useMemo(() => plans[category] ?? [], [category]);
+  const categoryPlans = useMemo(
+    () => plans[vehicle_type] ?? [],
+    [vehicle_type],
+  );
 
   const handleSubscribe = useCallback(
     (planId: string) => {
       navigation.push("SubscriptionPlanDetails", {
         planId,
-        category,
+        category: vehicle_type,
         activeSub,
       });
     },
-    [navigation, category, activeSub],
+    [navigation, vehicle_type, activeSub],
   );
 
   const handleManage = useCallback(() => {
     if (!activeSub) return;
     const activePlan = categoryPlans.find((p) => p.id === activeSub.plan_id);
-    if (!activePlan) return;
+    if (!activePlan || !vehicle_type) return;
     navigation.push("SubscriptionActiveManagement", {
       planId: activePlan.id,
-      category,
+      category: vehicle_type,
       activeSub,
     });
-  }, [navigation, categoryPlans, category, activeSub]);
+  }, [navigation, categoryPlans, vehicle_type, activeSub]);
 
   return (
     <Animated.ScrollView
@@ -104,6 +108,7 @@ export function SubscriptionOverviewScreen({
             </RnView>
 
             <Pressable
+              style={[s.p8, s.borderRadius_sm]}
               onPress={handleManage}
               accessibilityRole="button"
               accessibilityLabel="Manage subscription"
@@ -139,7 +144,7 @@ export function SubscriptionOverviewScreen({
       )}
 
       <RnText style={[atoms.text_md, { fontFamily: fonts.heavy.fontFamily }]}>
-        {category} Plans
+        {vehicle_type} Plans
       </RnText>
 
       {categoryPlans.map((plan) => (

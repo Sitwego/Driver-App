@@ -2,7 +2,6 @@
 import React from "react";
 import { AccountMenuScreen } from "~/Screens/AccountMenuScreen";
 import { nativeStackNavigationWithAuth } from "~/navigation/nativeStackNavigationWithAuth";
-import PlansScreen from "~/Screens/PlansScreen";
 import PaymentScreen from "~/Screens/PaymentScreen";
 import { SubscriptionOverviewScreen } from "~/Screens/SubscriptionOverviewScreen";
 import { SubscriptionPlanDetailsScreen } from "~/Screens/SubscriptionPlanDetailsScreen";
@@ -29,12 +28,6 @@ export function sharedStackScreens(Stack: Stack): React.JSX.Element {
         options={{ headerShown: false }}
         name="AccountMenuScreen"
         component={AccountMenuScreen}
-      />
-
-      <Stack.Screen
-        component={PlansScreen}
-        name="Plans"
-        options={{ headerShown: false }}
       />
       <Stack.Screen
         options={{ headerShown: true, title: "Public Profile" }}

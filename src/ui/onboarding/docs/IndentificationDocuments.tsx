@@ -26,7 +26,10 @@ type IdDocsType = {
 export function IndentificationDocuments() {
   const { dispatch, state } = useOnboardingControls();
   const { hide } = useDocuments();
-  const { uploadFile } = useFileUpload();
+  const { uploadFile: uploadFront, isUploading: isUploadingFront } =
+    useFileUpload();
+  const { uploadFile: uploadBack, isUploading: isUploadingBack } =
+    useFileUpload();
   const { colors, fonts } = useAppTheme();
   const pickerRef = useRef(null);
 
@@ -58,7 +61,7 @@ export function IndentificationDocuments() {
   const _onIdImgFront = useCallback(
     async (uri: string) => {
       try {
-        const res = await uploadFile({
+        const res = await uploadFront({
           endPoint: "driver/upload-documents",
           formData: createDocFormData(uri, "id-front"),
         });
@@ -74,13 +77,13 @@ export function IndentificationDocuments() {
         // upload failed
       }
     },
-    [uploadFile],
+    [uploadFront],
   );
 
   const _onIdImgBack = useCallback(
     async (uri: string) => {
       try {
-        const res = await uploadFile({
+        const res = await uploadBack({
           endPoint: "driver/upload-documents",
           formData: createDocFormData(uri, "id-back"),
         });
@@ -96,7 +99,7 @@ export function IndentificationDocuments() {
         // upload failed
       }
     },
-    [uploadFile],
+    [uploadBack],
   );
 
   const onIdNoChange = useCallback((id: string) => {
@@ -204,11 +207,13 @@ export function IndentificationDocuments() {
           value={idDocs.idImageFront}
           label="Upload Id photo front"
           onChange={_onIdImgFront}
+          isUploading={isUploadingFront}
         />
         <ImagePickerFormController
           value={idDocs.idImageBack}
           label="Upload Id photo back"
           onChange={_onIdImgBack}
+          isUploading={isUploadingBack}
         />
       </RnView>
       <FooterButton disabled={isAllFilled} onClose={onSave} />

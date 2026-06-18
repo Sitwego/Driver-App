@@ -41,7 +41,7 @@ export function SubscriptionActiveManagementScreen({
   const opacity = useFadeIn();
 
   const plan = useMemo(() => {
-    const p = userState?.plan_id ?? "plan_taxi_per_ride";
+    const p = userState?.plan_id;
     return plans[category].find((plan) => plan.id === p);
   }, [category, userState?.plan_id]);
 

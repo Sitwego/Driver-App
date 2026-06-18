@@ -8,28 +8,37 @@ import { DateFieldRef, DateInputField } from "~/ui/DateComponent";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { toSimpleDateString } from "~/utils/dates/simpleDateString";
 
-import { FileUploadResponseType, useOnboardingControls } from "../state";
+import {
+  FileUploadResponseType,
+  isTwoOrThreeWheeler,
+  useOnboardingControls,
+} from "../state";
 
 import { useDocuments } from "./DocumentModalProvider";
 import { FooterButton } from "./FotterCButton";
 import ImagePickerFormController from "./ImagePickerFormController";
 import { createDocFormData } from "./uploadUtils";
 
-type CertificateOfGoodConductType = {
-  certificateOfGoodConductExpiry: string;
-  certificateOfGoodConductFromDCI: string;
+type InsuranceState = {
+  insuranceUri: string;
+  insuranceExpiry: string;
 };
 
-export function CertificateOfGoodConduct() {
-  const { dispatch, state } = useOnboardingControls();
-  const { hide } = useDocuments();
+export function Insurance() {
   const { uploadFile, isUploading } = useFileUpload();
+  const { dispatch, state } = useOnboardingControls();
   const { colors } = useAppTheme();
+  const { hide } = useDocuments();
   const dateRef = useRef<DateFieldRef>(null);
 
-  const [cert, setCert] = useState<CertificateOfGoodConductType>(() => ({
-    certificateOfGoodConductExpiry: state.docs.certificateOfGoodConductExpiry,
-    certificateOfGoodConductFromDCI: "",
+  const insuranceLabel = isTwoOrThreeWheeler(state.vehicleDetails.vehicle_type)
+    ? "Motorcycle / Auto insurance"
+    : "PSV insurance";
+
+  const [insurance, setInsurance] = useState<InsuranceState>(() => ({
+    insuranceUri: "",
+    insuranceExpiry:
+      state.docs.insuranceExpiry ?? toSimpleDateString(new Date()),
   }));
   const [docData, setDocumentData] = useState<FileUploadResponseType>();
 
@@ -38,18 +47,12 @@ export function CertificateOfGoodConduct() {
       try {
         const res = await uploadFile({
           endPoint: "driver/upload-documents",
-          formData: createDocFormData(uri, "certificate-of-good-conduct"),
+          formData: createDocFormData(uri, "vehicle-insurance"),
         });
         if (res.data) {
-          setDocumentData({
-            id: res.data.id,
-            nonce: res.data.nonce,
-            encrypted_key: res.data.encrypted_key,
-          });
-          setCert((prev) => ({
-            ...prev,
-            certificateOfGoodConductFromDCI: uri,
-          }));
+          const { id, nonce, encrypted_key } = res.data;
+          setDocumentData({ nonce, id, encrypted_key });
+          setInsurance((prev) => ({ ...prev, insuranceUri: uri }));
         }
       } catch {
         // upload failed
@@ -58,22 +61,20 @@ export function CertificateOfGoodConduct() {
     [uploadFile],
   );
 
-  const isAllFilled = useMemo(() => {
-    const { certificateOfGoodConductExpiry, certificateOfGoodConductFromDCI } =
-      cert;
-    return (
-      certificateOfGoodConductExpiry.trim() !== "" &&
-      certificateOfGoodConductFromDCI.trim() !== "" &&
-      !!docData
-    );
-  }, [cert, docData]);
-
   const onDateChange = useCallback((date: string) => {
-    setCert((prev) => ({
+    setInsurance((prev) => ({
       ...prev,
-      certificateOfGoodConductExpiry: toSimpleDateString(date),
+      insuranceExpiry: toSimpleDateString(date),
     }));
   }, []);
+
+  const isAllFilled = useMemo(() => {
+    return (
+      insurance.insuranceUri.trim() !== "" &&
+      insurance.insuranceExpiry.trim() !== "" &&
+      !!docData
+    );
+  }, [insurance, docData]);
 
   const onSave = useCallback(async () => {
     if (!docData) return;
@@ -81,38 +82,32 @@ export function CertificateOfGoodConduct() {
       type: "setDocs",
       docs: {
         ...state.docs,
-        certificateOfGoodConductExpiry: cert.certificateOfGoodConductExpiry,
-        certificateOfGoodConductFromDCI: docData,
+        insurance: docData,
+        insuranceExpiry: insurance.insuranceExpiry,
       },
       apiResponse: undefined,
     });
     hide();
-  }, [
-    cert.certificateOfGoodConductExpiry,
-    dispatch,
-    docData,
-    hide,
-    state.docs,
-  ]);
+  }, [dispatch, docData, hide, insurance.insuranceExpiry, state.docs]);
 
   return (
     <RnView style={[s.flexDirectionRow, { flexWrap: "wrap" }, s.gap6]}>
       <RnText>
-        Police Clearance Certificate and expiry date
+        {insuranceLabel} expiry date
         <RnText style={{ color: colors.notification, fontSize: 18 }}>*</RnText>
       </RnText>
 
       <DateInputField
         inputRef={dateRef}
-        value={cert.certificateOfGoodConductExpiry}
+        value={insurance.insuranceExpiry}
         minimumDate={new Date()}
         onChangeDate={onDateChange}
-        label="Certificate Expiry date"
+        label="Insurance expiry date"
       />
 
       <ImagePickerFormController
-        value={cert.certificateOfGoodConductFromDCI}
-        label="Document Photo"
+        value={insurance.insuranceUri}
+        label="Insurance Document Photo"
         onChange={handleUpload}
         isUploading={isUploading}
       />

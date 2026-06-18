@@ -1,36 +1,50 @@
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
-import { Controller, useForm } from "react-hook-form";
-
-import RnText from "~/components/RnText";
-import { RnView } from "~/components/RnView";
-import { OnboardingControls } from "~/ui/onboarding/OnBoardingControls";
-import { s } from "~/styles/Common-Styles";
-import { atoms } from "~/ui/theme/atoms";
-import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { PressableScale as Pressable } from "pressto";
 import { useCallback, useRef } from "react";
-import { useOnboardingControls } from "../state";
-import RnTextInput from "~/components/RnTextInput";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import RnText from "~/components/RnText";
+import RnTextInput from "~/components/RnTextInput";
+import { RnView } from "~/components/RnView";
+import { CONSTANTS } from "~/constants/CONSTANTS";
 import { VehicleFormData } from "~/hooks/useOnboardingApi";
+import { s } from "~/styles/Common-Styles";
+import { OnboardingControls } from "~/ui/onboarding/OnBoardingControls";
+import { useAppTheme } from "~/ui/theme/ThemeProvider";
+import { atoms } from "~/ui/theme/atoms";
+
+import { useOnboardingControls } from "../state";
 
 /**
- * Validates a Kenyan number plate.
- *
- * Accepted formats (case-insensitive):
- *   - Private / PSV cars:  KXX 000X  (e.g. KDY 564B)
- *   - Motorcycles / Boda:  KMXX 000X (e.g. KMFH 564B)
+ * Kenyan number plate rules, keyed by the vehicle-type value selected in the
+ * picker. Patterns live in {@link CONSTANTS.REGEX}; the example doubles as the
+ * input placeholder and the format shown in the error message.
  */
-function isValidKenyanPlate(plate: string): boolean {
+const PLATE_RULES: Record<string, { pattern: RegExp; example: string }> = {
+  Taxi: { pattern: CONSTANTS.REGEX.KENYAN_PLATE_CAR, example: "KDY 564B" },
+  Bike: { pattern: CONSTANTS.REGEX.KENYAN_PLATE_BIKE, example: "KMAA 123A" },
+  Auto: { pattern: CONSTANTS.REGEX.KENYAN_PLATE_TUKTUK, example: "KTWA 001A" },
+};
+
+/**
+ * Validates a Kenyan number plate against the rule for the selected vehicle
+ * type. Returns `true` when valid, otherwise an error message.
+ */
+function validatePlate(plate: string, vehicleType: string): true | string {
+  const rule = PLATE_RULES[vehicleType];
+  if (!rule) return "Select a vehicle type first";
   const normalized = plate.trim().toUpperCase();
-  // K + 2–3 letters + single space + 3 digits + 1 letter
-  return /^K[A-Z]{2,3} \d{3}[A-Z]$/.test(normalized);
+  return (
+    rule.pattern.test(normalized) ||
+    `Invalid plate — use the ${rule.example} format`
+  );
 }
 
 const MANUFACTURE_YEARS = Array.from(
-  { length: new Date().getFullYear() - 2014 + 1 },
-  (_, i) => 2014 + i,
+  { length: new Date().getFullYear() - 2013 + 1 },
+  (_, i) => 2013 + i,
 );
 
 export function VehicleDetails() {
@@ -42,8 +56,12 @@ export function VehicleDetails() {
   const {
     control,
     handleSubmit,
+    trigger,
+    getValues,
     formState: { errors },
   } = useForm<VehicleFormData>();
+
+  const selectedVehicleType = useWatch({ control, name: "vehicle_type" });
 
   const _onSubmit = useCallback(
     (values: VehicleFormData) => {
@@ -108,12 +126,23 @@ export function VehicleDetails() {
                     mode="dropdown"
                     selectedValue={value ?? ""}
                     onValueChange={(itemValue) => {
-                      if (itemValue) onChange(itemValue);
+                      if (itemValue) {
+                        onChange(itemValue);
+                        // Re-validate the plate against the new vehicle type if
+                        // the user already entered one.
+                        if (getValues("license_plate")) {
+                          trigger("license_plate");
+                        }
+                      }
                     }}
                   >
                     <Picker.Item
-                      style={{ fontSize: 16, color: colors.lightGray }}
-                      label="Select vehicle type..."
+                      style={{
+                        fontSize: 20,
+                        fontFamily: fonts.regular.fontFamily,
+                        color: colors.lightGray,
+                      }}
+                      label="Choose your vehicle"
                       value=""
                       enabled={false}
                     />
@@ -123,7 +152,7 @@ export function VehicleDetails() {
                         fontFamily: fonts.medium.fontFamily,
                       }}
                       label="Boda"
-                      value="bike"
+                      value="Bike"
                     />
                     <Picker.Item
                       style={{
@@ -131,7 +160,7 @@ export function VehicleDetails() {
                         fontFamily: fonts.medium.fontFamily,
                       }}
                       label="Car"
-                      value="Cab"
+                      value="Taxi"
                     />
                     <Picker.Item
                       style={{
@@ -139,7 +168,7 @@ export function VehicleDetails() {
                         fontFamily: fonts.medium.fontFamily,
                       }}
                       label="Tuk Tuk"
-                      value="auto"
+                      value="Auto"
                     />
                   </Picker>
                 )}
@@ -329,9 +358,8 @@ export function VehicleDetails() {
               name="license_plate"
               rules={{
                 required: "License plate is required",
-                validate: (v) =>
-                  isValidKenyanPlate(v) ||
-                  "Invalid plate — use KDY 564B (car) or KMFH 564B (boda)",
+                validate: (v, formValues) =>
+                  validatePlate(v, formValues.vehicle_type),
               }}
               control={control}
               render={({ field: { onBlur, onChange, value } }) => (
@@ -355,7 +383,9 @@ export function VehicleDetails() {
                   maxLength={10}
                   onChangeText={onChange}
                   onBlur={onBlur}
-                  placeholder="KDY 564B"
+                  placeholder={
+                    PLATE_RULES[selectedVehicleType]?.example ?? "KDY 564B"
+                  }
                   placeholderTextColor={colors.lightGray}
                   value={value}
                 />

@@ -9,7 +9,7 @@ import { RnView } from "~/components/RnView";
 import { s } from "~/styles/Common-Styles";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import React, { memo, useCallback } from "react";
-import { TouchableHighlight } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableHighlight } from "react-native";
 import { useSheetWrapper } from "~/hooks/useSheetWrapper";
 import { getDataUriSize } from "~/utils/media/utils";
 import { usePhotoLibraryPermission } from "~/hooks/usePermision";
@@ -22,14 +22,30 @@ type ImageControllerTypes = {
   onChange: (value: string) => void;
   label: string;
   isProfileImage?: boolean;
+  isUploading?: boolean;
 };
 const ImagePickerFormController: React.FC<ImageControllerTypes> = ({
   value,
   onChange,
   label,
   isProfileImage,
+  isUploading,
 }) => {
   const { colors } = useAppTheme();
+
+  const uploadingOverlay = isUploading ? (
+    <RnView
+      style={[
+        StyleSheet.absoluteFill,
+        s.alignCenter,
+        s.justifyCenter,
+        { backgroundColor: "rgba(0,0,0,0.45)" },
+      ]}
+    >
+      <ActivityIndicator size="large" color={colors.primary} />
+      <RnText style={{ color: "#fff", marginTop: 8 }}>Uploading…</RnText>
+    </RnView>
+  ) : null;
 
   const { requestPhotoAccessIfNeeded } = usePhotoLibraryPermission();
 
@@ -101,6 +117,7 @@ const ImagePickerFormController: React.FC<ImageControllerTypes> = ({
     return (
       <TouchableHighlight
         onPress={openOpenLib}
+        disabled={isUploading}
         style={[
           s.justifyCenter,
           s.alignCenter,
@@ -129,6 +146,7 @@ const ImagePickerFormController: React.FC<ImageControllerTypes> = ({
           <RnView style={[s.flex1, s.alignCenter, s.justifyCenter]}>
             <RnText>{label}</RnText>
           </RnView>
+          {uploadingOverlay}
         </ImageBackground>
       </TouchableHighlight>
     );
@@ -137,6 +155,7 @@ const ImagePickerFormController: React.FC<ImageControllerTypes> = ({
   return (
     <TouchableHighlight
       onPress={openOpenLib}
+      disabled={isUploading}
       style={[
         s.w100pct,
         s.alignCenter,
@@ -164,6 +183,7 @@ const ImagePickerFormController: React.FC<ImageControllerTypes> = ({
         <RnView style={[s.flex1, s.alignCenter, s.justifyCenter]}>
           <RnText>{label}</RnText>
         </RnView>
+        {uploadingOverlay}
       </ImageBackground>
     </TouchableHighlight>
   );

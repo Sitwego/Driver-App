@@ -35,8 +35,10 @@ import { s } from "~/styles/Common-Styles";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
 import { themes } from "~/ui/theme/theme_utils";
+import { formatDate } from "~/utils/dates/formatDate";
 import { isPaymentDue } from "~/utils/dates/sub_expiry";
 import { isNowBeforeOrEqual } from "~/utils/dates/utils";
+import { getCategoryFromPlanId } from "~/utils/subscription";
 
 import { sharedStackScreens } from "../stack";
 
@@ -93,7 +95,20 @@ function TabBar({ state, descriptors, navigation }: any) {
     ],
   }));
 
-  const categoryPlans = React.useMemo(() => plans["Taxi"] ?? [], []);
+  // plan_id is undefined when signed out / on free trial — fall back to "Taxi".
+  const vehicle_type = userState.plan_id
+    ? getCategoryFromPlanId(userState.plan_id)
+    : "Taxi";
+  // plan_end_date is empty on free trial / no active plan — formatDate("") would
+  // throw "RangeError: Invalid time value", so only format when a date exists.
+  const nxt_billing_date = userState.plan_end_date
+    ? formatDate(userState.plan_end_date)
+    : "";
+
+  const categoryPlans = React.useMemo(
+    () => plans[vehicle_type] ?? [],
+    [vehicle_type],
+  );
 
   React.useEffect(() => {
     (async function () {
@@ -123,18 +138,18 @@ function TabBar({ state, descriptors, navigation }: any) {
 
   const settlePlansDues = React.useCallback(() => {
     const activeSub: ActiveSubscription = {
-      plan_id: "plan_taxi_unlimited",
+      plan_id: userState.plan_id,
       rides_used: 0,
-      next_billing_date: "Mar 10, 2026",
+      next_billing_date: nxt_billing_date,
     };
     const activePlan = categoryPlans.find((p) => p.id === activeSub.plan_id);
     if (!activePlan) return;
     nav.navigate("SubscriptionActiveManagement", {
       planId: activePlan.id,
-      category: "Taxi",
+      category: vehicle_type,
       activeSub,
     });
-  }, [categoryPlans, nav]);
+  }, [categoryPlans, nav, nxt_billing_date, userState.plan_id, vehicle_type]);
 
   const showReturnButton = React.useCallback(() => {
     "use no memo";

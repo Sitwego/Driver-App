@@ -30,7 +30,6 @@ const InnerApp = () => {
   useEffect(() => {
     (async function (token) {
       if (token) {
-        console.log(token);
         await saveTokenToSharedPreferences(token);
       }
     })(state.token || "");

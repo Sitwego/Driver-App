@@ -12,7 +12,11 @@ import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
 
 import { OnboardingControls } from "../OnBoardingControls";
-import { useOnboardingControls, FileUploadResponseType } from "../state";
+import {
+  useOnboardingControls,
+  FileUploadResponseType,
+  isTwoOrThreeWheeler,
+} from "../state";
 
 import { CertificateOfGoodConduct } from "./CertificateOfGoodConduct";
 import { IABottomSheetProps } from "./DocModalType";
@@ -20,6 +24,8 @@ import { useDocuments } from "./DocumentModalProvider";
 import { DrivingLicense } from "./DrivingLicense";
 import ImagePickerFormController from "./ImagePickerFormController";
 import { IndentificationDocuments } from "./IndentificationDocuments";
+import { Insurance } from "./Insurance";
+import { KraPin } from "./KraPin";
 import { PsvBadge } from "./PsvBadge";
 import { VehicleInspectionSticker } from "./VehicleInspectionSticker";
 
@@ -32,14 +38,31 @@ type DocRowProps = {
   done: boolean;
   colors: ReturnType<typeof useAppTheme>["colors"];
   onPress: () => void;
+  required?: boolean;
 };
 
-function DocRow({ label, done, colors, onPress }: DocRowProps) {
+function DocRow({
+  label,
+  done,
+  colors,
+  onPress,
+  required = true,
+}: DocRowProps) {
   return (
     <RnView style={[s.w100pct, s.gap6]}>
       <RnText>
         {label}
-        <RnText style={{ color: colors.notification, fontSize: 18 }}> *</RnText>
+        {required ? (
+          <RnText style={{ color: colors.notification, fontSize: 18 }}>
+            {" "}
+            *
+          </RnText>
+        ) : (
+          <RnText style={{ color: colors.lightGray, fontSize: 14 }}>
+            {" "}
+            (optional)
+          </RnText>
+        )}
       </RnText>
       <Pressable
         style={[
@@ -79,6 +102,10 @@ export function Docs() {
   const { uploadFile, isUploading } = useFileUpload();
   const [profilePhoto, setProfilePhoto] = useState<{ uri: string }>();
 
+  // Boda (Bike) & tuk-tuk (Auto) skip the PSV badge and inspection sticker but
+  // must provide motorcycle/auto insurance instead.
+  const isMotoOrAuto = isTwoOrThreeWheeler(state.vehicleDetails.vehicle_type);
+
   const docsStatus = useMemo(() => {
     const { docs } = state;
     return {
@@ -91,13 +118,24 @@ export function Docs() {
       goodConduct: isUploaded(docs.certificateOfGoodConductFromDCI),
       psvBadge: isUploaded(docs.psvBadge),
       inspection: isUploaded(docs.inspection),
+      insurance: isUploaded(docs.insurance),
+      kraPin: isUploaded(docs.kraPin),
     };
   }, [state]);
 
-  const allDocsUploaded = useMemo(
-    () => Object.values(docsStatus).every(Boolean),
-    [docsStatus],
-  );
+  const allDocsUploaded = useMemo(() => {
+    const required = [
+      docsStatus.profileImage,
+      docsStatus.identityDocs,
+      docsStatus.drivingLicense,
+      docsStatus.goodConduct,
+      // Insurance is required for every vehicle type.
+      docsStatus.insurance,
+      // PSV badge + inspection apply to cars only.
+      ...(isMotoOrAuto ? [] : [docsStatus.psvBadge, docsStatus.inspection]),
+    ];
+    return required.every(Boolean);
+  }, [docsStatus, isMotoOrAuto]);
 
   const onContinue = useCallback(() => {
     if (allDocsUploaded) dispatch({ type: "next" });
@@ -184,6 +222,7 @@ export function Docs() {
 
           <ImagePickerFormController
             isProfileImage
+            isUploading={isUploading}
             value={profilePhoto?.uri ?? ""}
             label="Profile Photo"
             onChange={handleUpload}
@@ -201,7 +240,11 @@ export function Docs() {
           }
         />
         <DocRow
-          label="Driving License"
+          label={
+            isMotoOrAuto
+              ? "Motorcycle Driving Licence (Class A)"
+              : "Driving License"
+          }
           done={docsStatus.drivingLicense}
           colors={colors}
           onPress={() => showDocModal("DriverLicense", <DrivingLicense />)}
@@ -218,18 +261,37 @@ export function Docs() {
           }
         />
         <DocRow
-          label="PSV Badge"
-          done={docsStatus.psvBadge}
-          colors={colors}
-          onPress={() => showDocModal("PsvBadge", <PsvBadge />)}
-        />
-        <DocRow
-          label="Vehicle Inspection Sticker"
-          done={docsStatus.inspection}
-          colors={colors}
-          onPress={() =>
-            showDocModal("InspectionSticker", <VehicleInspectionSticker />)
+          label={
+            isMotoOrAuto ? "Valid Motorcycle/Auto Insurance" : "PSV Insurance"
           }
+          done={docsStatus.insurance}
+          colors={colors}
+          onPress={() => showDocModal("Insurance", <Insurance />)}
+        />
+        {!isMotoOrAuto && (
+          <>
+            <DocRow
+              label="PSV Badge"
+              done={docsStatus.psvBadge}
+              colors={colors}
+              onPress={() => showDocModal("PsvBadge", <PsvBadge />)}
+            />
+            <DocRow
+              label="Vehicle Inspection Sticker"
+              done={docsStatus.inspection}
+              colors={colors}
+              onPress={() =>
+                showDocModal("InspectionSticker", <VehicleInspectionSticker />)
+              }
+            />
+          </>
+        )}
+        <DocRow
+          label="KRA PIN Certificate"
+          done={docsStatus.kraPin}
+          colors={colors}
+          required={false}
+          onPress={() => showDocModal("Kra", <KraPin />)}
         />
       </RnView>
       <OnboardingControls.Portal>

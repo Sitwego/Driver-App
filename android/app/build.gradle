@@ -101,7 +101,7 @@ android {
         applicationId 'com.transli.mobilitycaptain'
         minSdkVersion 27
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 51
+        versionCode 60
         versionName packageJson.version
         resValue "string", "expo_runtime_version", packageJson.version
     }

@@ -17,7 +17,7 @@ import ImagePickerFormController from "./ImagePickerFormController";
 import { createDocFormData } from "./uploadUtils";
 
 export function DrivingLicense() {
-  const { uploadFile } = useFileUpload();
+  const { uploadFile, isUploading } = useFileUpload();
   const { dispatch, state } = useOnboardingControls();
   const { colors } = useAppTheme();
   const { hide } = useDocuments();
@@ -90,6 +90,7 @@ export function DrivingLicense() {
         value={dl.driverLicense ?? ""}
         label="Document Photo"
         onChange={handleUpload}
+        isUploading={isUploading}
       />
       <FooterButton disabled={isAllFilled} onClose={onSave} />
     </RnView>

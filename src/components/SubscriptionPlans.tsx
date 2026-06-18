@@ -7,16 +7,19 @@
  *   - SubscriptionPlanDetailsScreen
  *   - SubscriptionActiveManagementScreen
  */
+import { PressableScale as Pressable } from "pressto";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet } from "react-native";
-import { PressableScale as Pressable } from "pressto";
+
+import { s } from "~/styles/Common-Styles";
+import { useAppTheme } from "~/ui/theme/ThemeProvider";
+import { atoms } from "~/ui/theme/atoms";
+import { themes } from "~/ui/theme/theme_utils";
+
+import Icon from "./Icons";
 import RnText from "./RnText";
 import { RnView } from "./RnView";
-import { s } from "~/styles/Common-Styles";
-import { atoms } from "~/ui/theme/atoms";
-import Icon from "./Icons";
-import { useAppTheme } from "~/ui/theme/ThemeProvider";
-import { themes } from "~/ui/theme/theme_utils";
+
 import type { SubscriptionCategory } from "~/navigation/types";
 
 // Re-export so callers can import ActiveSubscription from either location.

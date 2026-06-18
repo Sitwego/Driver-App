@@ -17,7 +17,14 @@ module.exports = {
       backgroundColor: '#ffffff',
     },
     plugins: [
-      'expo-build-properties',
+      [
+        'expo-build-properties',
+        {
+          android: {
+            allowBackup: true,
+          },
+        },
+      ],
       'expo-status-bar',
       [
         'react-native-edge-to-edge',

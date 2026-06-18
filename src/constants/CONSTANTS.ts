@@ -99,6 +99,15 @@ export const CONSTANTS = {
     DISTANCE_MERCHANT:
       /^[0-9.]+ \w+ @ (-|-\()?[^0-9.\s]{1,3} ?[0-9.]+\)? \/ \w+$/,
     WHITESPACE: /\s+/g,
+
+    // Kenyan number plates, by vehicle type (case-insensitive, single space
+    // before the numeric block).
+    //   Car:     K + 2 letters + 3 digits + 1 letter   (e.g. KDY 564B)
+    //   Bike:    KM + 2 letters + 3 digits + 1 letter  (e.g. KMAA 123A)
+    //   Tuk-tuk: KTW + 1 letter + 3 digits + 1 letter  (e.g. KTWA 001A)
+    KENYAN_PLATE_CAR: /^K[A-Z]{2} \d{3}[A-Z]$/,
+    KENYAN_PLATE_BIKE: /^KM[A-Z]{2} \d{3}[A-Z]$/,
+    KENYAN_PLATE_TUKTUK: /^KTW[A-Z] \d{3}[A-Z]$/,
   },
   ALL_COUNTRIES: {
     AF: "Afghanistan",

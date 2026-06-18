@@ -8,8 +8,10 @@ import type { NetworkStatus } from "../store";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const REACHABILITY_URL =
-  "https://nymphaeaceous-viscometrically-freeda.ngrok-free.dev";
+const REACHABILITY_URL = __DEV__
+  ? (process.env.EXPO_PUBLIC_API_BASE_URL_DEV ??
+    "https://nymphaeaceous-viscometrically-freeda.ngrok-free.dev")
+  : (process.env.EXPO_PUBLIC_API_BASE_URL ?? "");
 
 const REACHABILITY_TIMEOUT = 10 * 1_000;
 /** How often to re-probe while the device is offline */
