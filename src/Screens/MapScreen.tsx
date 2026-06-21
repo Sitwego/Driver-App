@@ -22,11 +22,13 @@ import MapToolbar from "~/components/RnMaps/MapToolbar";
 import RnMapView from "~/components/RnMaps/RnMapView";
 import { useDriverLocation } from "~/lib/Providers/DriverLocationProvider";
 import { useRideRequest } from "~/lib/Providers/UseRideRequestProvider";
+import { useUserState } from "~/lib/state/userState";
 import { RideNotificationType } from "~/types/rideRequstTypes";
 import HomeMenuBar from "~/ui/Views/HomeMenuBar";
 import { themes } from "~/ui/theme/theme_utils";
 import { GpsData, calcDynamicPitch } from "~/utils/geo";
 import { height as screenHeight } from "~/utils/metrics/dimm";
+import { getCategoryFromPlanId } from "~/utils/subscription";
 
 const TARGET_SCREEN_PERCENTAGE = 0.951;
 const LATITUDE_DELTA = 0.159999; // Adjust for desired zoom level (city-level zoom)
@@ -37,6 +39,7 @@ const DEFAULT_ZOOM = 16;
 
 const MapScreenComponent = (props: any) => {
   const mapRef = useRef<MapView>(null);
+  const userState = useUserState();
   const [onMapReady, setOnMapReady] = useState<boolean>(false);
   const { currentDriverLocation: currentDriverLoaction, latestGeoKalman } =
     useDriverLocation();
@@ -107,6 +110,10 @@ const MapScreenComponent = (props: any) => {
     },
     [onMapReady],
   );
+
+  const vehicle_type = userState.plan_id
+    ? getCategoryFromPlanId(userState.plan_id)
+    : "Taxi";
 
   // Watch the sheet's detent index on the UI thread and call the camera
   // adjuster on the JS thread whenever it snaps to a new integer position.
@@ -248,9 +255,10 @@ const MapScreenComponent = (props: any) => {
       <MapCarIcon
         geo_point={[currentDriverLoaction as GpsData]}
         polylinePoints={ride?.data?.ride_line_str ?? undefined}
+        vc={vehicle_type}
       />
     );
-  }, [currentDriverLoaction, ride?.data?.ride_line_str]);
+  }, [currentDriverLoaction, ride?.data?.ride_line_str, vehicle_type]);
 
   const ic_marker_user = useMemo(() => {
     if (!ride?.data) return null;
