@@ -1,6 +1,7 @@
 import React, { memo, useEffect, useMemo, useRef } from "react";
 import { Animated, Image } from "react-native";
 import { MarkerAnimated } from "react-native-maps";
+import { SubscriptionCategory } from "~/navigation/types";
 
 import {
   getMarkerRotation,
@@ -10,14 +11,19 @@ import {
   GpsData,
 } from "~/utils/geo";
 
-const CAR_ICON = require("../../../../assets/images/ic_taxi.png");
+const DEFAULT_VEHICLE_ICON = require("../../../../assets/images/ic_taxi.png");
+const VEHICLE_TOP_VIEW_IMAGES: Record<string, number> = {
+  Bike: require("../../../../assets/images/ny_ic_bike_top_view.png"),
+  Auto: require("../../../../assets/images/ny_ic_auto_top_view.png"),
+};
 
 interface Props {
   geo_point: GpsData[];
   polylinePoints?: GeoPoint[];
+  vc: SubscriptionCategory;
 }
 
-const MapCarIcon: React.FC<Props> = ({ geo_point, polylinePoints }) => {
+const MapCarIcon: React.FC<Props> = ({ geo_point, polylinePoints, vc }) => {
   const currentPosition = geo_point?.[0]?.geo_point;
   const prevPositionRef = useRef<typeof currentPosition>(undefined);
   const coordAnim = useRef<Animated.ValueXY | null>(null);
@@ -85,6 +91,17 @@ const MapCarIcon: React.FC<Props> = ({ geo_point, polylinePoints }) => {
       useNativeDriver: false,
     }).start();
   }, [displayPosition]);
+
+  const CAR_ICON = useMemo(() => {
+    switch (vc) {
+      case "Bike":
+        return VEHICLE_TOP_VIEW_IMAGES.Bike;
+      case "TukTuk":
+        return VEHICLE_TOP_VIEW_IMAGES.Auto;
+      default:
+        return DEFAULT_VEHICLE_ICON;
+    }
+  }, [vc]);
 
   if (!displayPosition) return null;
 
