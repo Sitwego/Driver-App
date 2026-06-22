@@ -87,11 +87,11 @@ public class FusedLocationProvider {
     @RequiresPermission("android.permission.ACCESS_FINE_LOCATION")
     public void startLocationUpdates(Settings m_settings, HandlerThread thread) {
         // Default interval in seconds
-        int locationRequestInterval = 20;
+        int locationRequestInterval = 10;
         int intervalMs = locationRequestInterval * m_settings.gpsMinTime;
         Log.d("FusedLocationProvider", "intervalMs: " + intervalMs); //20-000
         // Default max waiting time to get location in milliseconds
-        int locationMaxTimeThreshold = 2000;
+        int locationMaxTimeThreshold = 1000;
         m_locationRequest = new LocationRequest.Builder(intervalMs)
                 // Time-based updates
                 .setIntervalMillis(intervalMs)                     // Target update interval
