@@ -1,8 +1,8 @@
 import React, { memo, useEffect, useMemo, useRef } from "react";
 import { Animated, Image } from "react-native";
 import { MarkerAnimated } from "react-native-maps";
-import { SubscriptionCategory } from "~/navigation/types";
 
+import { SubscriptionCategory } from "~/navigation/types";
 import {
   getMarkerRotation,
   getPolylineBearing,
@@ -105,9 +105,12 @@ const MapCarIcon: React.FC<Props> = ({ geo_point, polylinePoints, vc }) => {
 
   if (!displayPosition) return null;
 
+  console.log("Map Icon", CAR_ICON);
+
   return (
     <MarkerAnimated
       anchor={{ x: 0.5, y: 0.5 }}
+      flat
       coordinate={{
         latitude: coordAnim.current!.x as unknown as number,
         longitude: coordAnim.current!.y as unknown as number,
