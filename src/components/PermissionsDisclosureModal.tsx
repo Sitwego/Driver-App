@@ -7,6 +7,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Icon from "~/components/Icons";
 import RnText from "~/components/RnText";
@@ -132,6 +133,7 @@ function PermissionsStep({
   busy: boolean;
 }) {
   const { colors } = useAppTheme();
+  const { bottom } = useSafeAreaInsets();
 
   return (
     <View style={[styles.fullScreen, { backgroundColor: colors.background }]}>
@@ -172,7 +174,7 @@ function PermissionsStep({
         ))}
       </ScrollView>
 
-      <View style={styles.bottomPad}>
+      <View style={[styles.bottomPad, { paddingBottom: bottom + space.lg }]}>
         <Pressable
           disabled={busy}
           style={({ pressed }) => [
@@ -324,7 +326,6 @@ const styles = StyleSheet.create({
   },
   bottomPad: {
     paddingHorizontal: space.xl,
-    paddingBottom: Platform.OS === "ios" ? 40 : space.xl,
     paddingTop: space.md,
   },
   confirmButton: {
