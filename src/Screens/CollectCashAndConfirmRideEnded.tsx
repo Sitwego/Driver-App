@@ -52,7 +52,7 @@ export function CollectCashAndConfirmRideEnded({
               { fontFamily: fonts.regular.fontFamily, color: colors.lightGray },
             ]}
           >
-            Base fare
+            Ride fare
           </RnText>
           <RnText
             style={[atoms.text_sm, { fontFamily: fonts.regular.fontFamily }]}
