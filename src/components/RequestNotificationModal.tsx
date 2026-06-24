@@ -169,12 +169,15 @@ const RequestNotificationModal = React.forwardRef(
       } as RideNotificationType;
       // Call the accept ride request API To notify the backend
       if (!ride?.data?.id) return;
-      await accepRideRequset({
+      const accepted = await accepRideRequset({
         ride_id: ride_data.id,
         from: ride_data.data.from.geo_point,
         to: ride_data.data.to.geo_point,
         vc,
       });
+      // Persist the server-locked pickup (approach) fare onto the ride so the
+      // end-ride breakdown can surface it. Server is authoritative here.
+      ride_data.data.pickup_fare = accepted?.pickup_fare ?? 0;
       setRide(ride_data);
       rideStore.set(["ride"], {
         ride: ride_data,

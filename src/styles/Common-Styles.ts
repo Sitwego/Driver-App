@@ -114,6 +114,8 @@ export const s = StyleSheet.create({
   pb5: { paddingBottom: 5 },
   pb10: { paddingBottom: 10 },
   pb20: { paddingBottom: 20 },
+  pb30: { paddingBottom: 30 },
+  pb40: { paddingBottom: 40 },
   px2: { paddingHorizontal: 2 },
   px4: { paddingHorizontal: 4 },
   px5: { paddingHorizontal: 5 },

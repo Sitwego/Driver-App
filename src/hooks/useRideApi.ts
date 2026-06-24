@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import {
@@ -12,6 +12,17 @@ import { RideNotificationType } from "~/types/rideRequstTypes";
 import { GeoPoint, getLocationAsync } from "~/utils/geo";
 
 import { useApiClient } from "./useApiClient";
+
+/**
+ * Server response to accepting a ride request. `pickup_fare` is the
+ * approach-leg fare (KES) the server locked for this driver at accept time —
+ * authoritative and not client-derived.
+ */
+export type AcceptRideRequestResponse = {
+  pickup_location: { lat: number; lon: number } | unknown;
+  polyline: [number, number][] | null;
+  pickup_fare: number;
+};
 
 export function useAcceptRideRequestMutation() {
   const { makeApiCall } = useApiClient();
@@ -27,7 +38,7 @@ export function useAcceptRideRequestMutation() {
       to: GeoPoint;
       vc?: string;
     }) {
-      return await makeApiCall({
+      return await makeApiCall<AcceptRideRequestResponse>({
         url: `accept-ride-request/${ride_id}/${vc!}/accept`,
         data: {
           from: {
@@ -233,6 +244,86 @@ export function useConfirmCollectedCash() {
     onError(error, variables, context) {},
     retry: 3,
   });
+}
+
+/**
+ * Raw fare snapshot returned by `GET /api/rides/{ride_id}/fare`.
+ *
+ * `components` is an open map: it always contains `estimated_fare`, plus any
+ * surcharge keys the backend allows (waiting_charge, toll, fuel_surcharge,
+ * pickup_fare, ... — admin-extendable). Decimal fields may arrive as a number
+ * or a string depending on the serializer, so coerce with `Number()`.
+ */
+export type RideFareSnapshot = {
+  id: string;
+  ride_id: string;
+  components: Record<string, number | string>;
+  total: number | string;
+  status: string;
+  reason: string | null;
+  recorded_at: string;
+};
+
+export type FareBreakdownLine = {
+  key: string;
+  label: string;
+  amount: number;
+  isEstimate: boolean;
+};
+
+/** Friendly labels for known fare keys. */
+const FARE_LABELS: Record<string, string> = {
+  estimated_fare: "Ride fare",
+  waiting_charge: "Waiting charge",
+  toll: "Toll",
+  extra_dx: "Extra distance",
+  pickup_fare: "Pick-up fare",
+  fuel_surcharge: "Fuel surcharge",
+};
+
+/** Title-cases an unknown snake_case key so new surcharges still render. */
+function humanizeFareKey(key: string): string {
+  return key
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+export function labelForFareKey(key: string): string {
+  return FARE_LABELS[key] ?? humanizeFareKey(key);
+}
+
+/**
+ * Fetches the latest fare snapshot for a ride and derives a render-ready
+ * breakdown. The estimate is sorted first; surcharges follow. Any new fare
+ * type the backend introduces flows through automatically — no client change.
+ */
+export function useRideFare(ride_id: string) {
+  const { fetcher } = useApiClient();
+  const query = useQuery<RideFareSnapshot>({
+    queryKey: ["ride-fare", ride_id],
+    queryFn: () => fetcher(`api/rides/${ride_id}/fare`),
+    enabled: !!ride_id,
+  });
+
+  const breakdown: FareBreakdownLine[] = useMemo(() => {
+    const components = query.data?.components ?? {};
+    return Object.entries(components)
+      .map(([key, value]) => ({
+        key,
+        label: labelForFareKey(key),
+        amount: Number(value) || 0,
+        isEstimate: key === "estimated_fare",
+      }))
+      .sort((a, b) => Number(b.isEstimate) - Number(a.isEstimate));
+  }, [query.data]);
+
+  const total = useMemo(() => {
+    if (query.data?.total != null) return Number(query.data.total) || 0;
+    return breakdown.reduce((sum, line) => sum + line.amount, 0);
+  }, [query.data, breakdown]);
+
+  return { ...query, breakdown, total };
 }
 
 export function useCancelRideRequest() {

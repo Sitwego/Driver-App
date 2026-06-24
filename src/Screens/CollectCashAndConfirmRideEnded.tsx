@@ -1,12 +1,14 @@
 import { useCallback } from "react";
 import { DeviceEventEmitter, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Icon from "~/components/Icons";
 import RnText from "~/components/RnText";
 import { RnView, RnAnimatedView } from "~/components/RnView";
-import { useConfirmCollectedCash } from "~/hooks/useRideApi";
-import { rideStore, useStorage } from "~/lib/store";
+import { useConfirmCollectedCash, useRideFare } from "~/hooks/useRideApi";
+import { rideStore } from "~/lib/store";
 import { NavigationProps } from "~/navigation/types";
+import { s } from "~/styles/Common-Styles";
 import SwipeSlider from "~/ui/SliderButton";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
@@ -20,48 +22,91 @@ export function CollectCashAndConfirmRideEnded({
 }: NavigationProps<"CollectCashAndConfirmRideEnded">) {
   const { colors, fonts } = useAppTheme();
   const { fare, ride_id } = route.params;
-  const [overtimeCharge] = useStorage(rideStore, ["overtimeCharge"]);
-  const totalFare = fare + (overtimeCharge ?? 0);
+  const { breakdown, total } = useRideFare(ride_id);
+  const { top } = useSafeAreaInsets();
+
+  // Fall back to the route-param fare until the snapshot loads (or if it fails).
+  const totalFare = total || fare;
+  const lines =
+    breakdown.length > 0
+      ? breakdown.filter((line) => line.isEstimate || line.amount > 0)
+      : [
+          {
+            key: "estimated_fare",
+            label: "Ride fare",
+            amount: fare,
+            isEstimate: true,
+          },
+        ];
+
   const { mutateAsync: collectedCash } = useConfirmCollectedCash();
+
   const handlePaymentConfirmation = useCallback(async () => {
     await collectedCash({ ride_id, is_discounted: false, discount: 0 });
     rideStore.remove(["overtimeCharge"]);
-    //TODO::
-    // emit event to show rating modal
     navigation.push("RatingScreen", { rideId: ride_id, riderName: "" });
     DeviceEventEmitter.emit("onRideComplete", true);
   }, [collectedCash, navigation, ride_id]);
   return (
-    <RnAnimatedView style={[styles.container]}>
-      <RnView style={[styles.paymentD, atoms.gap_md]}>
-        <RnText style={[atoms.text_xl, { fontFamily: fonts.heavy.fontFamily }]}>
-          {formatPrice(totalFare)}Ksh
+    <RnAnimatedView style={[styles.container, { paddingTop: top }]}>
+      <RnView
+        style={[
+          styles.card,
+          {
+            borderColor: themes.bg_900,
+          },
+        ]}
+      >
+        <RnText
+          style={[
+            atoms.text_xs,
+            styles.cardTitle,
+            { fontFamily: fonts.bold.fontFamily, color: colors.lightGray },
+          ]}
+        >
+          FARE BREAKDOWN
         </RnText>
-        <Icon
-          name="Banknote"
-          size={35}
-          strokeWidth={2}
-          color={themes.green_500}
-        />
-      </RnView>
-      <RnView style={styles.breakdown}>
-        <RnView style={styles.breakdownRow}>
-          <RnText
-            style={[
-              atoms.text_sm,
-              { fontFamily: fonts.regular.fontFamily, color: colors.lightGray },
-            ]}
-          >
-            Ride fare
-          </RnText>
-          <RnText
-            style={[atoms.text_sm, { fontFamily: fonts.regular.fontFamily }]}
-          >
-            {formatPrice(fare)} Ksh
-          </RnText>
+
+        <RnView style={atoms.gap_sm}>
+          {lines.map((line) => (
+            <RnView key={line.key} style={styles.breakdownRow}>
+              <RnText
+                style={[
+                  atoms.text_sm,
+                  {
+                    fontFamily: fonts.regular.fontFamily,
+                    color: colors.lightGray,
+                  },
+                ]}
+              >
+                {line.label}
+              </RnText>
+              <RnText
+                style={[
+                  atoms.text_sm,
+                  {
+                    fontFamily: fonts.bold.fontFamily,
+                    color: line.isEstimate ? colors.text : themes.green_500,
+                  },
+                ]}
+              >
+                {line.isEstimate ? "" : "+"}
+                {formatPrice(line.amount)} Ksh
+              </RnText>
+            </RnView>
+          ))}
         </RnView>
-        {(overtimeCharge ?? 0) > 0 && (
-          <RnView style={styles.breakdownRow}>
+
+        <RnView style={[styles.divider, { borderColor: themes.bg_900 }]} />
+
+        <RnView style={styles.totalRow}>
+          <RnView style={styles.totalLabel}>
+            <Icon
+              name="Banknote"
+              size={20}
+              strokeWidth={2}
+              color={themes.green_500}
+            />
             <RnText
               style={[
                 atoms.text_sm,
@@ -71,30 +116,29 @@ export function CollectCashAndConfirmRideEnded({
                 },
               ]}
             >
-              Waiting charge
-            </RnText>
-            <RnText
-              style={[
-                atoms.text_sm,
-                {
-                  fontFamily: fonts.regular.fontFamily,
-                  color: themes.green_500,
-                },
-              ]}
-            >
-              +{formatPrice(overtimeCharge!)} Ksh
+              Total to collect
             </RnText>
           </RnView>
-        )}
+          <RnText
+            style={[atoms.text_xl, { fontFamily: fonts.heavy.fontFamily }]}
+          >
+            {formatPrice(totalFare)} Ksh
+          </RnText>
+        </RnView>
       </RnView>
-      <RnView style={[styles.vertSpace]}>
-        <RnText
-          style={[atoms.text_sm, { fontFamily: fonts.regular.fontFamily }]}
-        >
-          Collect Cash
-        </RnText>
-      </RnView>
-      <RnView>
+      <RnView style={[s.flex1, s.justifyCenter, s.pb40]}>
+        <RnView style={[styles.vertSpace]}>
+          <RnText
+            style={[
+              atoms.text_xl,
+              //@ts-ignore
+              atoms.text_center,
+              { fontFamily: fonts.regular.fontFamily },
+            ]}
+          >
+            Collect Cash
+          </RnText>
+        </RnView>
         <SwipeSlider
           onSwipeComplete={handlePaymentConfirmation}
           initialTrackColor={themes.green_400}
@@ -122,25 +166,39 @@ export function CollectCashAndConfirmRideEnded({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
+    // justifyContent: "center",
     alignItems: "center",
-  },
-  paymentD: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "center",
-    marginBottom: 16,
   },
   vertSpace: {
-    marginVertical: 10,
+    paddingVertical: 20,
   },
-  breakdown: {
-    width: "80%",
-    marginBottom: 12,
+  card: {
+    width: "92%",
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    gap: 14,
+    marginBottom: 20,
+  },
+  cardTitle: {
+    letterSpacing: 1,
   },
   breakdownRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginVertical: 2,
+    alignItems: "center",
+  },
+  divider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  totalLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 });
