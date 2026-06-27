@@ -1,6 +1,6 @@
 {
   "name": "mobility-captain",
-  "version": "0.0.51-rn-beta",
+  "version": "0.0.54-rn-beta",
   "main": "index.ts",
   "scripts": {
     "android": "expo run:android",
@@ -67,7 +67,7 @@
     "expo-updates": "~56.0.18",
     "lodash": "^4.17.23",
     "lucide-react-native": "0.510.0",
-    "pressto": "^0.6.1",
+    "pressto": "^0.7.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.61.1",

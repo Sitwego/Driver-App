@@ -125,6 +125,27 @@ export function CollectCashAndConfirmRideEnded({
             {formatPrice(totalFare)} Ksh
           </RnText>
         </RnView>
+        <RnView style={[styles.note, { backgroundColor: themes.green_975 }]}>
+          <Icon
+            name="ShieldCheck"
+            size={16}
+            strokeWidth={2}
+            color={themes.green_500}
+          />
+          <RnText
+            style={[
+              atoms.text_xs,
+              styles.noteText,
+              {
+                fontFamily: fonts.regular.fontFamily,
+                color: colors.lightGray,
+              },
+            ]}
+          >
+            100% fare is collected in cash. No deductions or commissions are
+            applied.
+          </RnText>
+        </RnView>
       </RnView>
       <RnView style={[s.flex1, s.justifyCenter, s.pb40]}>
         <RnView style={[styles.vertSpace]}>
@@ -200,5 +221,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  note: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  noteText: {
+    flex: 1,
+    lineHeight: 18,
   },
 });

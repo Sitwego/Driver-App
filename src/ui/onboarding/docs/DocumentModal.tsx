@@ -47,10 +47,6 @@ export default forwardRef(({ children }: Props, ref) => {
       height,
     );
   }, [data?.hasCancel, data?.itemHeight, insets.bottom]);
-  useImperativeHandle(ref, () => ({
-    show,
-    hide,
-  }));
   const show = useCallback(
     (props: React.SetStateAction<IABottomSheetProps | undefined>) => {
       setData(props);
@@ -59,6 +55,11 @@ export default forwardRef(({ children }: Props, ref) => {
     [],
   );
   const hide = useCallback(() => bottomSheetRef.current?.close(), []);
+
+  useImperativeHandle(ref, () => ({
+    show,
+    hide,
+  }));
 
   const onClose = useCallback(() => {
     setVisible((prev) => !prev);
@@ -89,10 +90,7 @@ export default forwardRef(({ children }: Props, ref) => {
     ),
     [],
   );
-  const renderComponent = useMemo(
-    () => (data?.children ? data.children : null),
-    [data?.children],
-  );
+  const renderComponent = data?.children ?? null;
   // Function to handle height change in BottomSheet
   const handleSheetChange = useCallback(
     (index: number) => {

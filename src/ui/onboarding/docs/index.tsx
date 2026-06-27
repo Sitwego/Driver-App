@@ -1,5 +1,5 @@
-import { PressableScale as Pressable } from "pressto";
 import { useCallback, useMemo, useState } from "react";
+import { Pressable } from "react-native";
 import ReactNativeBlobUtil from "react-native-blob-util";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
