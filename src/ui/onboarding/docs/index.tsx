@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Pressable } from "react-native";
+import { Pressable, ScrollView } from "react-native";
 import ReactNativeBlobUtil from "react-native-blob-util";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -10,6 +10,7 @@ import useFileUpload from "~/hooks/useFileUpload";
 import { s } from "~/styles/Common-Styles";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
+import { openWhatsApp } from "~/utils/open_uri";
 
 import { OnboardingControls } from "../OnBoardingControls";
 import {
@@ -28,6 +29,9 @@ import { Insurance } from "./Insurance";
 import { KraPin } from "./KraPin";
 import { PsvBadge } from "./PsvBadge";
 import { VehicleInspectionSticker } from "./VehicleInspectionSticker";
+
+// TODO: replace with the real driver-support number (or wire to config/env).
+const SUPPORT_PHONE = "+254743181173";
 
 function isUploaded(doc?: FileUploadResponseType) {
   return !!doc?.id && doc.id.trim() !== "";
@@ -190,16 +194,48 @@ export function Docs() {
   );
 
   return (
-    <RnView style={[s.align_start, s.justifyBetween]}>
+    <RnView style={[s.w100pct, s.align_start, { marginTop: -18 }]}>
+      {/* Nav bar */}
       <RnView
         style={[
           s.w100pct,
-          atoms.gap_sm,
-          s.flexCol,
-          { flexWrap: "wrap", marginTop: insets.top },
+          s.flexDirectionRow,
+          s.justifyBetween,
+          s.alignCenter,
+          { paddingBottom: 24 },
         ]}
       >
         <RnText style={[atoms.text_xl]}>Account Setup</RnText>
+        <Pressable
+          onPress={() =>
+            openWhatsApp(
+              SUPPORT_PHONE,
+              "Hi👋, I need help with my driver onboarding.",
+            )
+          }
+          hitSlop={8}
+          style={[
+            s.flexDirectionRow,
+            s.alignCenter,
+            s.gap6,
+            {
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 20,
+              backgroundColor: colors.lightBackground,
+            },
+          ]}
+        >
+          <Icon name="Headset" size={16} color={colors.primary} />
+          <RnText style={{ color: colors.primary }}>Help</RnText>
+        </Pressable>
+      </RnView>
+
+      <ScrollView
+        style={s.w100pct}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[atoms.gap_sm, { flexWrap: "wrap" }]}
+      >
         <RnText
           style={[
             {
@@ -293,7 +329,7 @@ export function Docs() {
           required={false}
           onPress={() => showDocModal("Kra", <KraPin />)}
         />
-      </RnView>
+      </ScrollView>
       <OnboardingControls.Portal>
         <RnView
           style={[

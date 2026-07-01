@@ -1,6 +1,6 @@
 {
   "name": "mobility-captain",
-  "version": "0.0.54-rn-beta",
+  "version": "0.0.55-rn-beta",
   "main": "index.ts",
   "scripts": {
     "android": "expo run:android",
@@ -16,7 +16,7 @@
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",
     "@legendapp/list": "^2.0.19",
-    "@lodev09/react-native-true-sheet": "3.11.0-beta.15",
+    "@lodev09/react-native-true-sheet": "^3.11.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/hooks": "^100.1.0",
     "@react-native-community/netinfo": "12.0.1",

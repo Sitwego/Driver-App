@@ -53,8 +53,8 @@ const ImagePickerFormController: React.FC<ImageControllerTypes> = ({
       const resp = await sheetWraper(
         launchImageLibraryAsync({
           ...opt,
-          exif: false,
           mediaTypes: "images",
+          allowsEditing: true,
           quality: 1,
           legacy: true,
         }),
@@ -88,7 +88,7 @@ const ImagePickerFormController: React.FC<ImageControllerTypes> = ({
   const openOpenLib = useCallback(
     async function () {
       const img = await openImagePicker({
-        aspect: [16, 9],
+        aspect: [1, 1.414],
       });
 
       let image = img[0];

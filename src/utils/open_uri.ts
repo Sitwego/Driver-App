@@ -17,4 +17,23 @@ const makePhoneCall = (phoneNumber: string) => {
     .catch((err) => console.error("An error occurred", err));
 };
 
-export { makePhoneCall };
+const openWhatsApp = (phoneNumber: string, message = "") => {
+  // WhatsApp expects the number without "+", spaces or leading zeros.
+  const normalized = phoneNumber.replace(/[^\d]/g, "");
+  const appUrl = `whatsapp://send?phone=${normalized}${
+    message ? `&text=${encodeURIComponent(message)}` : ""
+  }`;
+  const webUrl = `https://wa.me/${normalized}${
+    message ? `?text=${encodeURIComponent(message)}` : ""
+  }`;
+
+  Linking.canOpenURL(appUrl)
+    .then((supported) =>
+      Linking.openURL(supported ? appUrl : webUrl).catch((err) =>
+        console.error("An error occurred while trying to open WhatsApp", err),
+      ),
+    )
+    .catch((err) => console.error("An error occurred", err));
+};
+
+export { makePhoneCall, openWhatsApp };

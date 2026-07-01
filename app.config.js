@@ -76,6 +76,7 @@ module.exports = {
     android: {
       package: 'com.transli.mobilitycaptain',
       googleServicesFile: './google-services.json',
+      usePrecompiledHeaders: true,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff',
