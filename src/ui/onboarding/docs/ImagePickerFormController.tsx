@@ -16,6 +16,15 @@ import { getDataUriSize } from "~/utils/media/utils";
 import { width } from "~/utils/metrics/dimm";
 import { isNative } from "~/utils/platform";
 
+const SUPPORTED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg", // non-standard, but reported by some pickers
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+
 type ImageControllerTypes = {
   value: string;
   onChange: (value: string) => void;
@@ -54,22 +63,17 @@ const ImagePickerFormController: React.FC<ImageControllerTypes> = ({
         launchImageLibraryAsync({
           ...opt,
           mediaTypes: "images",
-          allowsEditing: true,
+          // allowsEditing: true,
           quality: 1,
-          legacy: true,
         }),
       );
 
       return (resp.assets ?? [])
         .slice(0, 1)
-        .filter((asset, _) => {
-          if (
-            !asset.mimeType?.startsWith("image/") ||
-            (!asset.mimeType?.endsWith("jpeg") &&
-              !asset.mimeType?.endsWith("jpg") &&
-              !asset.mimeType?.endsWith("png"))
-          ) {
-            console.log("Only .jpg and .png files are supported");
+        .filter((asset) => {
+          const mime = asset.mimeType?.toLowerCase();
+          if (!mime || !SUPPORTED_IMAGE_MIME_TYPES.has(mime)) {
+            console.log("Unsupported image format:", asset.mimeType);
             return false;
           }
           return true;
@@ -88,13 +92,13 @@ const ImagePickerFormController: React.FC<ImageControllerTypes> = ({
   const openOpenLib = useCallback(
     async function () {
       const img = await openImagePicker({
-        aspect: [1, 1.414],
+        aspect: [9, 16],
       });
 
       let image = img[0];
       if (!image) return;
 
-      image = await compressImgIfNeeded(image, 1000000);
+      image = await compressImgIfNeeded(image);
 
       if (isNative) {
         await ExpoImage.prefetch(image.path);

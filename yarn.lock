@@ -2517,10 +2517,10 @@
   dependencies:
     use-sync-external-store "^1.5.0"
 
-"@lodev09/react-native-true-sheet@^3.11.1":
-  version "3.11.1"
-  resolved "https://registry.yarnpkg.com/@lodev09/react-native-true-sheet/-/react-native-true-sheet-3.11.1.tgz#6a8cb5b415041052c64263f25b22ad0ddabd0bb0"
-  integrity sha512-bUtNLE/TN+je7X8bPEc3tVJg8nZLGV1nM6Qv/8qE69CcqK0lwhsTOnEof+Mb3KWBNbDNrMQSDj4F2BkOmJzMAg==
+"@lodev09/react-native-true-sheet@^3.11.2":
+  version "3.11.2"
+  resolved "https://registry.yarnpkg.com/@lodev09/react-native-true-sheet/-/react-native-true-sheet-3.11.2.tgz#40fe17ecee01a16f44230a1957a7806a307e6730"
+  integrity sha512-ENSHnX0juBtrqElTKz4WMas9CLYPlv/y5GuATK325GuVIYFxHE8uo5ttCmXPksCGzQTrkiPtmL8Jw0QvtwQi5g==
 
 "@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3":
   version "3.0.3"

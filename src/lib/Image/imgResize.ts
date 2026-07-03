@@ -1,4 +1,3 @@
-import { Platform, Image as RNImage } from "react-native";
 import {
   cacheDirectory,
   copyAsync,
@@ -7,26 +6,37 @@ import {
   EncodingType,
   getInfoAsync,
   makeDirectoryAsync,
-  StorageAccessFramework,
   writeAsStringAsync,
-} from "expo-file-system";
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
-import * as MediaLibrary from "expo-media-library";
-import { Buffer } from "buffer";
-import { Dimensions, PickerImage } from "./image-types";
+} from "expo-file-system/legacy";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import { Platform, Image as RNImage } from "react-native";
+
 import { generateUUID } from "~/utils/uuid";
+
+import { Dimensions, PickerImage } from "./image-types";
 
 export const POST_IMG_MAX = {
   width: 2000,
   height: 2000,
-  size: 1000000,
+  size: 1048576, // 1MB
 };
+
+// The backend only accepts JPEG and PNG; anything else (WebP, HEIC, …) is
+// re-encoded to JPEG even when under the size limit.
+const PASS_THROUGH_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg", // non-standard, but reported by some pickers
+  "image/png",
+]);
 
 export async function compressImgIfNeeded(
   img: PickerImage,
   maxSize: number = POST_IMG_MAX.size,
 ): Promise<PickerImage> {
-  if (img.size < maxSize) {
+  const needsJpegConversion = !PASS_THROUGH_MIME_TYPES.has(
+    img.mime.toLowerCase(),
+  );
+  if (img.size < maxSize && !needsJpegConversion) {
     return img;
   }
   const resizedImage = await doResize(normalizePath(img.path), {
@@ -104,72 +114,76 @@ async function doResize(
   localUri: string,
   opts: DoResizeOpts,
 ): Promise<PickerImage> {
-  // We need to get the dimensions of the image before we resize it. Previously, the library we used allowed us to enter
-  // a "max size", and it would do the "best possible size" calculation for us.
-  // Now instead, we have to supply the final dimensions to the manipulation function instead.
-  // Performing an "empty" manipulation lets us get the dimensions of the original image. React Native's Image.getSize()
+  // We need to get the dimensions of the image before we resize it, to preserve the aspect
+  // ratio within POST_IMG_MAX. Rendering the manipulator context gives us an in-memory image
+  // reference with the original dimensions. React Native's Image.getSize()
   // does not work for local files...
-  const imageRes = await manipulateAsync(localUri, [], {});
+  const context = ImageManipulator.manipulate(localUri);
+  const originalImage = await context.renderAsync();
   const newDimensions = getResizedDimensions({
-    width: imageRes.width,
-    height: imageRes.height,
+    width: originalImage.width,
+    height: originalImage.height,
   });
 
-  let minQualityPercentage = 0;
-  let maxQualityPercentage = 101; // exclusive
-  let newDataUri;
-  const intermediateUris = [];
+  const resizedImage = await context.resize(newDimensions).renderAsync();
 
-  while (maxQualityPercentage - minQualityPercentage > 1) {
-    const qualityPercentage = Math.round(
-      (maxQualityPercentage + minQualityPercentage) / 2,
-    );
-    const resizeRes = await manipulateAsync(
-      localUri,
-      [{ resize: newDimensions }],
-      {
+  try {
+    let minQualityPercentage = 0;
+    let maxQualityPercentage = 101; // exclusive
+    let newDataUri;
+    const intermediateUris = [];
+
+    while (maxQualityPercentage - minQualityPercentage > 1) {
+      const qualityPercentage = Math.round(
+        (maxQualityPercentage + minQualityPercentage) / 2,
+      );
+      const saveRes = await resizedImage.saveAsync({
         format: SaveFormat.JPEG,
         compress: qualityPercentage / 100,
-      },
+      });
+
+      intermediateUris.push(saveRes.uri);
+
+      const fileInfo = await getInfoAsync(saveRes.uri);
+      if (!fileInfo.exists) {
+        throw new Error(
+          "The image manipulation library failed to create a new image.",
+        );
+      }
+
+      if (fileInfo.size < opts.maxSize) {
+        minQualityPercentage = qualityPercentage;
+        newDataUri = {
+          path: normalizePath(saveRes.uri),
+          mime: "image/jpeg",
+          size: fileInfo.size,
+          width: saveRes.width,
+          height: saveRes.height,
+        };
+      } else {
+        maxQualityPercentage = qualityPercentage;
+      }
+    }
+
+    for (const intermediateUri of intermediateUris) {
+      if (newDataUri?.path !== normalizePath(intermediateUri)) {
+        safeDeleteAsync(intermediateUri);
+      }
+    }
+
+    if (newDataUri) {
+      return newDataUri;
+    }
+
+    throw new Error(
+      `This image is too big! We couldn't compress it down to ${opts.maxSize} bytes`,
     );
-
-    intermediateUris.push(resizeRes.uri);
-
-    const fileInfo = await getInfoAsync(resizeRes.uri);
-    if (!fileInfo.exists) {
-      throw new Error(
-        "The image manipulation library failed to create a new image.",
-      );
-    }
-
-    if (fileInfo.size < opts.maxSize) {
-      minQualityPercentage = qualityPercentage;
-      newDataUri = {
-        path: normalizePath(resizeRes.uri),
-        mime: "image/jpeg",
-        size: fileInfo.size,
-        width: resizeRes.width,
-        height: resizeRes.height,
-      };
-    } else {
-      maxQualityPercentage = qualityPercentage;
-    }
+  } finally {
+    // Free the native bitmaps without waiting for GC.
+    originalImage.release();
+    resizedImage.release();
+    context.release();
   }
-
-  for (const intermediateUri of intermediateUris) {
-    if (newDataUri?.path !== normalizePath(intermediateUri)) {
-      safeDeleteAsync(intermediateUri);
-    }
-  }
-
-  if (newDataUri) {
-    safeDeleteAsync(imageRes.uri);
-    return newDataUri;
-  }
-
-  throw new Error(
-    `This image is too big! We couldn't compress it down to ${opts.maxSize} bytes`,
-  );
 }
 
 async function moveToPermanentPath(path: string, ext: string): Promise<string> {
@@ -278,13 +292,15 @@ export function getResizedDimensions(originalDims: {
 function createPath(ext: string) {
   // cacheDirectory will never be null on native, so the null check here is not necessary except for typescript.
   // we use a web-only function for downloadAndResize on web
-  return `${cacheDirectory ?? ""}/${generateUUID()}.${ext}`;
+  return joinPath(cacheDirectory ?? "", `${generateUUID()}.${ext}`);
 }
 
 async function downloadImage(uri: string, path: string, timeout: number) {
   const dlResumable = createDownloadResumable(uri, path, { cache: true });
 
-  const to1 = setTimeout(() => dlResumable.cancelAsync(), timeout);
+  const to1 = setTimeout(() => {
+    dlResumable.cancelAsync().catch(() => {});
+  }, timeout);
 
   const dlRes = await dlResumable.downloadAsync();
   clearTimeout(to1);
