@@ -108,7 +108,7 @@ export const initialState: ControlsContextType = {
       nonce: [],
       encrypted_key: [],
     },
-    idType: "",
+    idType: "national_id",
     idNo: "",
     idImageFront: {
       id: "",

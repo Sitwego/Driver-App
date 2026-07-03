@@ -34,7 +34,7 @@ export function IndentificationDocuments() {
   const pickerRef = useRef(null);
 
   const [idDocs, setIdDocs] = useState<IdDocsType>(() => ({
-    idType: state.docs.idType ?? "national_id",
+    idType: state.docs.idType,
     idNo: state.docs.idNo,
     idImageFront: "",
     idImageBack: "",
