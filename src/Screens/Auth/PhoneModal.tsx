@@ -95,9 +95,9 @@ export const PhoneModal: React.FC<Props> = ({
     try {
       await setPhoneNumber(phone);
       close();
+      setLoading(false);
     } catch (err) {
       setError(getFirebaseAuthErrorMessage(err));
-    } finally {
       setLoading(false);
     }
   }, [phone, setPhoneNumber, close]);

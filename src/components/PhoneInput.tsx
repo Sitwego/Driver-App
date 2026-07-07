@@ -1,5 +1,6 @@
-import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { PhoneInput } from "react-native-phone-entry";
+
+import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
 export type PhoneInputProps = {
   phone?: string;
