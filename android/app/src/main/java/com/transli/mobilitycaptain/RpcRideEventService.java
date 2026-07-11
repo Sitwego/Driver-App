@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.transli.mobilitycaptain.helpers.ThreadUtils;
@@ -298,6 +299,26 @@ public class RpcRideEventService extends Service implements RpcEventInterface {
                                 Events.Location location = locationUpdate.getLocation();
                                 eventPayload.putDouble("lat", location.getLatitude());
                                 eventPayload.putDouble("lng", location.getLongitude());
+                            }
+                            case STOP_ADDED -> {
+                                Events.StopAddedEvent stopAdded = event.getStopAdded();
+                                Events.Location stop = stopAdded.getStop();
+                                eventPayload.putDouble("stop_lat", stop.getLatitude());
+                                eventPayload.putDouble("stop_lng", stop.getLongitude());
+                                eventPayload.putString("stop_address", stop.getAddress());
+                                eventPayload.putDouble("old_fare", stopAdded.getOldFare());
+                                eventPayload.putDouble("new_fare", stopAdded.getNewFare());
+                                eventPayload.putDouble("added_distance_km", stopAdded.getAddedDistanceKm());
+                                eventPayload.putLong("added_duration_seconds", stopAdded.getAddedDurationSeconds());
+                                // (lon, lat) pairs — same shape as the REST ride_line_str polylines.
+                                WritableArray newRoute = Arguments.createArray();
+                                for (Events.RoutePoint point : stopAdded.getNewRouteList()) {
+                                    WritableArray pair = Arguments.createArray();
+                                    pair.pushDouble(point.getLongitude());
+                                    pair.pushDouble(point.getLatitude());
+                                    newRoute.pushArray(pair);
+                                }
+                                eventPayload.putArray("new_route", newRoute);
                             }
                             default -> { return null; }
                         }

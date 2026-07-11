@@ -37,6 +37,8 @@ message RideEvent {
     DriverArrivedEvent driver_arrived = 12;
     FareChangeEvent fare_change = 13;
     LocationUpdateEvent location_update = 14;
+    // 15/16 are held for the planned correlation_id/causation_id fields below.
+    StopAddedEvent stop_added = 17;
   }
   // REQUIRED: For process tracing  
   // string correlation_id: 15,    // NEVER NULL
@@ -85,6 +87,10 @@ message RideStartEvent {
   string vehicle_number = 5;
   DriverInfo driver_info = 6;
   int64 estimated_duration = 7;
+  // Intermediate stops in visit order (Pickup → Stop(s) → DropOff); empty
+  // for direct rides. Currently at most one stop — the backend caps it
+  // (MAX_RIDE_STOPS); repeated so lifting the cap needs no proto change.
+  repeated Location stops = 8;
 }
 
 // Event when driver arrives at pickup location
@@ -92,6 +98,28 @@ message DriverArrivedEvent {
   Location arrival_location = 1;
   int64 actual_arrival_time = 2;
   int64 wait_time_seconds = 3;
+}
+
+// Event when the rider adds an intermediate stop mid-ride. Carries the
+// repriced fare and the new remaining route so both apps can update
+// without a refetch.
+message StopAddedEvent {
+  Location stop = 1;
+  double old_fare = 2;
+  double new_fare = 3;
+  // Remaining route (driver position → stop → drop-off) replacing the
+  // one currently displayed. Points are (longitude, latitude) — same
+  // orientation as the REST `line_str`/`p1` polylines.
+  repeated RoutePoint new_route = 4;
+  double added_distance_km = 5;
+  int64 added_duration_seconds = 6;
+}
+
+// Bare route vertex for event-borne polylines — `Location` would carry an
+// address/place_id per point, and routes run to hundreds of points.
+message RoutePoint {
+  double longitude = 1;
+  double latitude = 2;
 }
 
 // Event when fare changes during the ride
@@ -143,5 +171,5 @@ service RideEventService {
   rpc StreamDriverEvents(stream DriverEventRequest) returns (stream RideEvent);
 
   // for rider events
-  rpc StreamRiderEvents(RiderEventRequest) returns (stream RideEvent);
+  rpc StreamRiderEvents(stream RiderEventRequest) returns (stream RideEvent);
 }
