@@ -71,6 +71,13 @@ public class GeoKalman extends Service implements ILogger, LocationServiceInterf
     public static String BEARER_TOKEN = "";
 
     public static final String TAG = "GeoKalman";
+    /**
+     * Persisted in shared preferences so BootReceiver can tell whether the
+     * driver was online when the process died (reboot / app update) and
+     * auto-resume tracking. Set in startGeokalmanService, cleared in
+     * stopGeokalmanService.
+     */
+    public static final String PREF_KEY_DRIVER_ONLINE = "is_driver_online";
     private static final String CHANNEL_ID = "GeoNotificationChannel";
     private static final int NOTIFICATION_ID = 1;
     private static GeoKalman instance;
@@ -171,13 +178,16 @@ public class GeoKalman extends Service implements ILogger, LocationServiceInterf
         startQueueProcessor();
         startBatchSizeUpdater();
 
-        // Start gRPC notification service if not running
+        // Start gRPC notification service if not running. Use the application
+        // context (not the React context) so this also works when the service
+        // is started headless by BootReceiver after a reboot / app update.
         try {
-            assert reactApplicationContext != null;
-            if (!isServiceRunning(reactApplicationContext, GrpcNotificationService.class)) {
-                Intent grpcIntent = new Intent(reactApplicationContext, GrpcNotificationService.class);
+            RpcChannelManager.init();
+            Context appContext = getApplicationContext();
+            if (!isServiceRunning(appContext, GrpcNotificationService.class)) {
+                Intent grpcIntent = new Intent(appContext, GrpcNotificationService.class);
                 grpcIntent.putExtra(GrpcNotificationService.TOKEN_KEY, token);
-                reactApplicationContext.startService(grpcIntent);
+                appContext.startService(grpcIntent);
             }
         } catch (Exception e) {
             Log.e("GeoKalman", "Error starting Grpc Notification Service" + e);
@@ -204,9 +214,10 @@ public class GeoKalman extends Service implements ILogger, LocationServiceInterf
         shutdownExecutorSafely(apiExecutor);
 
         try {
-            if (reactApplicationContext != null && isServiceRunning(reactApplicationContext, GrpcNotificationService.class)) {
+            Context appContext = getApplicationContext();
+            if (isServiceRunning(appContext, GrpcNotificationService.class)) {
                 Log.d("GrpcNotificationService", "Stopping Grpc Notification Service");
-                reactApplicationContext.stopService(new Intent(reactApplicationContext, GrpcNotificationService.class));
+                appContext.stopService(new Intent(appContext, GrpcNotificationService.class));
             }
         } catch (Exception e) {
             Log.i("GrpcNotificationService", "Error stopping Grpc Notification Service" + e);
@@ -259,6 +270,21 @@ public class GeoKalman extends Service implements ILogger, LocationServiceInterf
         return instance;
     }
 
+    /**
+     * Re-attach to the current React context. Needed after the app task was
+     * swiped away and reopened: this service outlives the activity, so the
+     * context/emitter captured at start belong to a dead React instance.
+     */
+    public void refreshReactContext() {
+        reactApplicationContext = GeoKalmanModule.getReactAppContext();
+        if (reactApplicationContext != null) {
+            eventEmitter = reactApplicationContext.getJSModule(
+                    DeviceEventManagerModule.RCTDeviceEventEmitter.class
+            );
+            Log.d(TAG, "Re-attached to new React context");
+        }
+    }
+
     // =========================================================================
 
     private static void createNotificationChannel(Context context) {
@@ -275,7 +301,12 @@ public class GeoKalman extends Service implements ILogger, LocationServiceInterf
 
     @SuppressLint("WrongConstant")
     private Notification createNotification() {
-        Intent notificationIntent = new Intent(this, activityClassOpenfromNotification);
+        // activityClassOpenfromNotification is only set via startGeokalmanService;
+        // it is null after a START_STICKY restart of a fresh process, which would
+        // otherwise NPE before startForeground and crash the service.
+        Class<? extends Activity> notificationTarget =
+                activityClassOpenfromNotification != null ? activityClassOpenfromNotification : MainActivity.class;
+        Intent notificationIntent = new Intent(this, notificationTarget);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -407,6 +438,9 @@ public class GeoKalman extends Service implements ILogger, LocationServiceInterf
 
     public static void startGeokalmanService(Class<? extends Activity> activityClass, Context context, String token) {
         activityClassOpenfromNotification = activityClass;
+        SharedPreferences.Editor editor = getSharedPrefs(context).edit();
+        editor.putBoolean(PREF_KEY_DRIVER_ONLINE, true);
+        editor.apply();
         createNotificationChannel(context);
         Intent intent = new Intent(context, GeoKalman.class);
         intent.putExtra("token", token);
@@ -414,9 +448,17 @@ public class GeoKalman extends Service implements ILogger, LocationServiceInterf
     }
 
     public static void stopGeokalmanService(Context context) {
+        getSharedPrefs(context).edit().putBoolean(PREF_KEY_DRIVER_ONLINE, false).apply();
         ServicesHelper.disconnect(context);
         Intent serviceIntent = new Intent(context, GeoKalman.class);
         context.stopService(serviceIntent);
+    }
+
+    private static SharedPreferences getSharedPrefs(Context context) {
+        return context.getSharedPreferences(
+                context.getString(R.string.sit_we_go_shared_preferences),
+                Context.MODE_PRIVATE
+        );
     }
 
     private void stopLocationUpdates() {

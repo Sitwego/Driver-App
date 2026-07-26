@@ -16,13 +16,21 @@ import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
 import { useSheetAnimation } from "~/components/RnBottomSheet/BottomSheetProvider";
 import EtaBadge from "~/components/RnMaps/EtaBadge";
-import MapCarIcon from "~/components/RnMaps/MapMarker/MapCarIcon";
+import MapCarIcon, {
+  getVehicleTopViewIcon,
+} from "~/components/RnMaps/MapMarker/MapCarIcon";
 import { RnMapPolyline } from "~/components/RnMaps/MapPolyline/Polyline";
 import MapToolbar from "~/components/RnMaps/MapToolbar";
 import RnMapView from "~/components/RnMaps/RnMapView";
 import { useDriverLocation } from "~/lib/Providers/DriverLocationProvider";
-import { useRideRequest } from "~/lib/Providers/UseRideRequestProvider";
+import {
+  useRideRequest,
+  useRideRequestStatus,
+} from "~/lib/Providers/UseRideRequestProvider";
 import { useUserState } from "~/lib/state/userState";
+import { VehicleTracker } from "~/tracking/VehicleTracker";
+import { driverFixSource } from "~/tracking/driverFixSource";
+import { isSmoothTrackingEnabled } from "~/tracking/flags";
 import { RideNotificationType } from "~/types/rideRequstTypes";
 import HomeMenuBar from "~/ui/Views/HomeMenuBar";
 import { themes } from "~/ui/theme/theme_utils";
@@ -131,6 +139,24 @@ const MapScreenComponent = (props: any) => {
   const ride = useMemo(() => {
     return (rideState as { ride: RideNotificationType })?.ride;
   }, [rideState]);
+
+  // ── Smooth-tracking pipeline wiring (src/tracking) ─────────────────
+  // The ACTIVE leg is what the vehicle is snapped to: driver → pickup
+  // until the ride starts, then the ride line. The flag is sampled once
+  // per mount (a mid-trip flip must not tear the pipeline down).
+  const { rideStatus } = useRideRequestStatus();
+  const hasRideStarted = rideStatus?.rideStatus?.hasRideStarted ?? false;
+  const [smoothEnabled] = useState(isSmoothTrackingEnabled);
+
+  const activeLegPoints = useMemo(() => {
+    if (!ride?.data) return null;
+    const leg = hasRideStarted
+      ? ride.data.ride_line_str
+      : ride.data.driver_to_pickup_line_str;
+    return leg && leg.length >= 2 ? leg : null;
+  }, [ride?.data, hasRideStarted]);
+
+  const smoothActive = smoothEnabled && activeLegPoints !== null;
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener("onRideComplete", () => {
@@ -260,6 +286,32 @@ const MapScreenComponent = (props: any) => {
     );
   }, [currentDriverLoaction, ride?.data?.ride_line_str, vehicle_type]);
 
+  // The smooth pipeline marker: snaps the native Kalman GPS stream to
+  // the active leg, renders via Reanimated animatedProps (no per-frame
+  // React), and draws its own traveled/ahead split for that leg.
+  const smooth_vehicle = useMemo(() => {
+    if (!smoothActive || !activeLegPoints) return null;
+    return (
+      <VehicleTracker
+        source={driverFixSource}
+        routePoints={activeLegPoints}
+        rideType={vehicle_type === "Bike" ? "boda" : undefined}
+        routeColors={
+          hasRideStarted
+            ? { ahead: themes.primary_400, behind: themes.primary_700 }
+            : { ahead: themes.green_400, behind: themes.green_700 }
+        }
+        icon={
+          <Image
+            source={getVehicleTopViewIcon(vehicle_type)}
+            style={{ height: 50, width: 50 }}
+            contentFit="contain"
+          />
+        }
+      />
+    );
+  }, [smoothActive, activeLegPoints, hasRideStarted, vehicle_type]);
+
   const ic_marker_user = useMemo(() => {
     if (!ride?.data) return null;
     return (
@@ -314,9 +366,18 @@ const MapScreenComponent = (props: any) => {
         showsMyLocationButton={false}
         onRegionChangeComplete={_onRegionChangeComplete}
       >
-        {polyline}
-        {driver_to_pickup}
-        {map_car_icon}
+        {/* Ride line: static preview while heading to pickup; once the
+            ride starts the tracker draws it as a traveled/ahead split,
+            so the static copy renders only without smooth tracking. */}
+        {ride?.data && (!hasRideStarted || !smoothActive) ? polyline : null}
+        {/* Driver → pickup leg: gone the moment the ride starts; while
+            active it is either the tracker's split or the static line. */}
+        {ride?.data && !hasRideStarted && !smoothActive
+          ? driver_to_pickup
+          : null}
+        {/* The real car marker: smooth pipeline when flagged on and a
+            route exists, else the current per-fix MapCarIcon. */}
+        {smoothActive ? smooth_vehicle : map_car_icon}
         {ic_marker_user}
         {ic_marker_stop}
       </RnMapView>

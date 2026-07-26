@@ -17,6 +17,18 @@ const VEHICLE_TOP_VIEW_IMAGES: Record<string, number> = {
   Auto: require("../../../../assets/images/ny_ic_auto_top_view.png"),
 };
 
+/** Top-view icon asset per vehicle category (shared with VehicleTracker). */
+export function getVehicleTopViewIcon(vc: SubscriptionCategory): number {
+  switch (vc) {
+    case "Bike":
+      return VEHICLE_TOP_VIEW_IMAGES.Bike;
+    case "TukTuk":
+      return VEHICLE_TOP_VIEW_IMAGES.Auto;
+    default:
+      return DEFAULT_VEHICLE_ICON;
+  }
+}
+
 interface Props {
   geo_point: GpsData[];
   polylinePoints?: GeoPoint[];
@@ -92,16 +104,7 @@ const MapCarIcon: React.FC<Props> = ({ geo_point, polylinePoints, vc }) => {
     }).start();
   }, [displayPosition]);
 
-  const CAR_ICON = useMemo(() => {
-    switch (vc) {
-      case "Bike":
-        return VEHICLE_TOP_VIEW_IMAGES.Bike;
-      case "TukTuk":
-        return VEHICLE_TOP_VIEW_IMAGES.Auto;
-      default:
-        return DEFAULT_VEHICLE_ICON;
-    }
-  }, [vc]);
+  const CAR_ICON = useMemo(() => getVehicleTopViewIcon(vc), [vc]);
 
   if (!displayPosition) return null;
 

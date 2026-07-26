@@ -37,11 +37,18 @@ const GoOnlineSlider = ({ onStateChange, isOnline }: GoOnlineSliderProps) => {
   const offlineOpacity = useSharedValue(isOnline ? 0 : 1);
   const [showOnlineIcon, setShowOnlineIcon] = useState(isOnline);
 
-  useEffect(() => {
-    setShowOnlineIcon(isOnline);
-  }, [isOnline]);
-
   const isOnlineShared = useSharedValue(isOnline);
+  const isGestureActive = useSharedValue(false);
+
+  // Follow post-mount prop changes (e.g. parent rehydrates from the native
+  // service after the app process restarts). Writing isOnlineShared drives
+  // offset/opacities/colors through the useAnimatedReaction below; skip while
+  // a drag is in progress so we don't fight the gesture.
+  useEffect(() => {
+    if (isGestureActive.value) return;
+    setShowOnlineIcon(isOnline);
+    isOnlineShared.value = isOnline;
+  }, [isOnline, isGestureActive, isOnlineShared]);
 
   // Defined on the JS side so it isn't compiled as a worklet.
   // scheduleOnRN passes goOnline as an arg and calls this on the RN thread.
@@ -71,6 +78,13 @@ const GoOnlineSlider = ({ onStateChange, isOnline }: GoOnlineSliderProps) => {
   const pan = Gesture.Pan()
     .activeOffsetX([-5, 5])
     .failOffsetY([-5, 5])
+    .onBegin(() => {
+      isGestureActive.value = true;
+    })
+    .onFinalize(() => {
+      // Fires on end, cancel, and fail — the guard can never stick.
+      isGestureActive.value = false;
+    })
     .onChange((event) => {
       offset.value = Math.max(
         0,

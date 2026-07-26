@@ -1,4 +1,3 @@
-import { PressableScale as Pressable } from "pressto";
 import React, {
   memo,
   useCallback,
@@ -7,13 +6,12 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { ViewProps, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import {
   useSharedValue,
   useAnimatedProps,
   useAnimatedStyle,
   interpolate,
-  AnimatedProps,
   withTiming,
   runOnJS,
 } from "react-native-reanimated";
@@ -21,74 +19,42 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAcceptRideRequestMutation } from "~/hooks/useRideApi";
 import { useRideRequest } from "~/lib/Providers/UseRideRequestProvider";
+import { clearPendingRideRequest } from "~/lib/native";
 import { rideStore } from "~/lib/store";
 import { RideNotificationType } from "~/types/rideRequstTypes";
 import { UpcomingRideInfo } from "~/ui/Views/UpcomingRide";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
-import { height } from "~/utils/metrics/dimm";
+import { themes } from "~/ui/theme/theme_utils";
+import { height, width } from "~/utils/metrics/dimm";
+import { rideRequestRemainingSec } from "~/utils/rideUtils";
 
 import Avatar from "./Avatar";
 import Icon from "./Icons";
 import ProgressBarTimer from "./RequestTimeout";
+import OfferBanner from "./RideOffer/OfferBanner";
+import OfferFooter from "./RideOffer/OfferFooter";
+import OfferRoute from "./RideOffer/OfferRoute";
+import OfferStatHeader from "./RideOffer/OfferStatHeader";
+import OfferTags from "./RideOffer/OfferTags";
 import { useBottomSheet } from "./RnBottomSheet/BottomSheetProvider";
 import RnText from "./RnText";
-import { RnAnimatedView, RnView } from "./RnView";
-import PickupToDestination from "./route/PickUpDropOff-Indicator";
-
-export const BackDropView: React.FC<
-  AnimatedProps<ViewProps> & { close: () => void }
-> = ({ close, ...rest }) => {
-  const { colors } = useAppTheme();
-  const { top } = useSafeAreaInsets();
-  return (
-    <RnAnimatedView
-      {...rest}
-      style={[
-        {
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-          backgroundColor: "transparent",
-          zIndex: 0,
-        },
-      ]}
-    >
-      <Pressable
-        onPress={close}
-        style={{
-          top: top + 16,
-          right: 16,
-          position: "absolute",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 48,
-          height: 48,
-          zIndex: 1,
-          backgroundColor: "rgba(0, 0, 0, 0.6)",
-          borderRadius: 24,
-        }}
-      >
-        <Icon name="X" size={26} strokeWidth={2} color={colors.text} />
-      </Pressable>
-    </RnAnimatedView>
-  );
-};
+import { RnAnimatedView } from "./RnView";
 
 /** Just for debugging */
 const initialIsModalOpened = false;
+
 interface Props {
   children: React.ReactNode | React.ReactElement;
 }
 const RequestNotificationModal = React.forwardRef(
   ({ children }: Props, ref) => {
-    const { colors, fonts } = useAppTheme();
+    const { colors } = useAppTheme();
     const insets = useSafeAreaInsets();
     const { rideState, removeRide, setRide } = useRideRequest();
     const { mutateAsync: accepRideRequset, isPending } =
       useAcceptRideRequestMutation();
+
     const ride = useMemo(() => {
       return (rideState as { ride: RideNotificationType })?.ride;
     }, [rideState]);
@@ -103,11 +69,6 @@ const RequestNotificationModal = React.forwardRef(
       () => openAnimValue.value === 1,
       [openAnimValue],
     );
-
-    const backdropProps = useAnimatedProps(() => ({
-      pointerEvents:
-        openAnimValue.value === 1 ? ("auto" as const) : ("box-none" as const),
-    }));
 
     const drawerContainerProps = useAnimatedProps(() => ({
       pointerEvents:
@@ -124,7 +85,6 @@ const RequestNotificationModal = React.forwardRef(
     const opacityStyle = useAnimatedStyle(() => ({
       opacity: interpolate(openAnimValue.value, [0, 1, 2], [0, 1, 0]),
     }));
-    const maxHeight = height - insets.bottom - insets.top;
 
     const [isOpened, setIsOpened] = useState(false);
 
@@ -163,6 +123,9 @@ const RequestNotificationModal = React.forwardRef(
 
     const onAcceptRideRequest = useCallback(async () => {
       closeModal();
+      // Handled in-app — drop the native slot so a later foreground cannot
+      // replay this same offer as a fresh modal.
+      clearPendingRideRequest().catch(() => {});
       const ride_data = {
         ...ride,
         opened: true,
@@ -187,11 +150,11 @@ const RequestNotificationModal = React.forwardRef(
     const onCancelRideRequest = useCallback(async () => {
       removeRide();
       closeModal();
+      clearPendingRideRequest().catch(() => {});
     }, [removeRide, closeModal]);
 
     useEffect(() => {
       if (!getIsModalOpened() && ride?.opened) {
-        console.log("CAN_OPPEN_BOTTOM_SHEET", ride?.opened);
         show({
           hasBackDrop: true,
           hasCancel: true,
@@ -204,33 +167,21 @@ const RequestNotificationModal = React.forwardRef(
 
     useEffect(() => {
       if (!ride || !ride?.data) return;
-      console.log("Ride Request Notification Data Changed:-", ride?.opened);
-      if (!ride?.opened) {
+      // onRequestPress toggles, so it must only be reached while the modal is
+      // closed: a repeat SET_RIDE for an offer already on screen would
+      // otherwise close the modal instead of leaving it alone.
+      if (!ride?.opened && !isOpened) {
         onRequestPress();
       }
-    }, [onRequestPress, ride]);
+    }, [isOpened, onRequestPress, ride]);
 
-    const fare = useMemo(() => `${ride?.data?.fare}Ksh`, [ride?.data?.fare]);
-
-    const pickupToDestination = useMemo(() => {
-      if (!ride?.data) return null;
-      return (
-        <PickupToDestination
-          from={{
-            city: ride?.data?.from?.city,
-            street: ride.data?.from?.street,
-            ward: ride.data?.from?.ward,
-            country: ride.data?.from?.country ?? undefined,
-          }}
-          to={{
-            city: ride.data?.to?.city,
-            street: ride.data?.to?.street,
-            ward: ride.data?.to?.ward,
-            country: ride.data?.to?.country ?? undefined,
-          }}
-        />
-      );
-    }, [ride?.data]);
+    // Computed once per offer, not per render: a fresh Date.now() on every
+    // render would restart the bar's animation. A replayed request (app was
+    // killed when it arrived) gets only the time it has actually left.
+    const requestDuration = useMemo(
+      () => rideRequestRemainingSec(ride?.received_at),
+      [ride?.received_at],
+    );
 
     // create rider name from the ride data
     const riderName = useMemo(() => {
@@ -239,145 +190,88 @@ const RequestNotificationModal = React.forwardRef(
       return `${firstName} ${lastName}`;
     }, [ride?.data?.rider_info?.first_name, ride?.data?.rider_info?.last_name]);
 
-    console.log("Ride Request Modal Rendered with Ride Data:-", ride);
+    const rating = ride?.data?.rider_info?.total_rating_score;
 
     return (
       <React.Fragment>
         {children}
         {isOpened && (
-          <>
-            <BackDropView
+          <RnAnimatedView
+            animatedProps={drawerContainerProps}
+            style={[
+              opacityStyle,
+              translateYStyle,
+              styles.panel,
+              {
+                backgroundColor: colors.background,
+                paddingTop: insets.top,
+                paddingBottom: insets.bottom + 12,
+              },
+            ]}
+          >
+            <OfferBanner />
+
+            <View style={[atoms.px_md, atoms.pt_md]}>
+              <OfferStatHeader
+                fare={ride?.data?.fare ?? 0}
+                distanceKm={ride?.data?.distance ?? 0}
+              />
+            </View>
+
+            <ProgressBarTimer
+              duration={requestDuration}
               close={onCancelRideRequest}
-              animatedProps={backdropProps}
-              style={opacityStyle}
+              barWidth={width}
             />
 
-            <RnAnimatedView
-              animatedProps={drawerContainerProps}
-              style={[
-                opacityStyle,
-                translateYStyle,
-                {
-                  width: "100%",
-                  display: "flex",
-                  maxHeight: maxHeight,
-                  paddingHorizontal: 10,
-                  paddingTop: insets.top - 10,
-                  paddingBottom: insets.bottom + 16 + 50,
-                  alignSelf: "flex-end",
-                  justifyContent: "flex-end",
-                  position: "absolute",
-                  bottom: 0,
-                  backgroundColor: colors.background,
-                  borderTopRightRadius: 16,
-                  borderTopLeftRadius: 16,
-                },
+            <ScrollView
+              style={atoms.flex_1}
+              contentContainerStyle={[
+                atoms.px_md,
+                atoms.pt_md,
+                atoms.gap_xl,
+                styles.scrollContent,
               ]}
+              showsVerticalScrollIndicator={false}
             >
-              <RnView
-                style={{
-                  width: "100%",
-                  justifyContent: "flex-start",
-                  flexDirection: "column",
-                }}
-              >
-                <View
-                  style={[
-                    atoms.gap_md,
-                    {
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 8,
-                    },
-                  ]}
-                >
-                  <RnText
-                    style={[
-                      atoms.text_md,
-                      { fontFamily: fonts.heavy.fontFamily },
-                    ]}
-                  >
-                    {fare}
-                  </RnText>
+              <OfferTags
+                vc={vc}
+                distanceToPickup={ride?.data?.distance_to_pickup ?? 0}
+              />
 
-                  <RnText
-                    style={[
-                      atoms.text_xl,
-                      {
-                        fontFamily: fonts.heavy.fontFamily,
-                        color: colors.lightGray,
-                      },
-                    ]}
-                  >
-                    {vc}
+              <OfferRoute from={ride?.data?.from} to={ride?.data?.to} />
+
+              <View
+                style={[
+                  styles.riderRow,
+                  atoms.pt_md,
+                  atoms.border_t,
+                  { borderTopColor: themes.bg_800 },
+                ]}
+              >
+                <View style={[styles.riderIdentity, atoms.gap_sm]}>
+                  <Avatar size={36} onLoad={() => {}} />
+                  <RnText numberOfLines={1} style={atoms.text_sm}>
+                    {riderName}
                   </RnText>
                 </View>
-                <ProgressBarTimer duration={20} close={onCancelRideRequest} />
-              </RnView>
-              <RnView style={[styles.content_view]}>
-                {pickupToDestination}
-                <RnView style={{ marginBottom: 16 }} />
-                <RnView style={[styles.USER_details]}>
-                  <RnView
-                    style={[
-                      {
-                        flexDirection: "row",
-                        alignContent: "center",
-                        alignItems: "flex-start",
-                        justifyContent: "center",
-                      },
-                      atoms.gap_xs,
-                    ]}
-                  >
-                    <Avatar size={35} onLoad={() => {}} />
-                    <RnText
-                      style={[atoms.text_xs, { color: colors.lightGray }]}
-                    >
-                      {riderName}
-                    </RnText>
-                  </RnView>
-                  <RnView
-                    style={[
-                      {
-                        flexDirection: "row",
-                        justifyContent: "center",
-                        alignItems: "center",
-                      },
-                      atoms.gap_xs,
-                    ]}
-                  >
-                    <Icon name="Star" size={24} color={colors.lightGray} />
-                    <RnText
-                      style={[atoms.text_xs, { color: colors.lightGray }]}
-                    >
-                      {ride?.data?.rider_info?.total_rating_score
-                        ? ride.data.rider_info.total_rating_score.toFixed(1)
-                        : "N/A"}
-                    </RnText>
-                  </RnView>
-                </RnView>
-              </RnView>
-            </RnAnimatedView>
-            <Pressable
-              onPress={onAcceptRideRequest}
-              style={[
-                {
-                  padding: 14,
-                  width: "95%",
-                  alignSelf: "center",
-                  borderRadius: 16,
-                  bottom: insets.bottom + 5,
-                  backgroundColor: colors.primary,
-                  justifyContent: "center",
-                  alignItems: "center",
-                },
-              ]}
-            >
-              <RnText style={[{ fontFamily: fonts.regular.fontFamily }]}>
-                ACCEPT REQUEST
-              </RnText>
-            </Pressable>
-          </>
+                <View style={[styles.riderRating, atoms.gap_2xs]}>
+                  <Icon name="Star" size={16} color={colors.lightGray} />
+                  <RnText style={[atoms.text_sm, { color: colors.lightGray }]}>
+                    {rating ? rating.toFixed(1) : "N/A"}
+                  </RnText>
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={[atoms.px_md, atoms.pt_md]}>
+              <OfferFooter
+                onSkip={onCancelRideRequest}
+                onAccept={onAcceptRideRequest}
+                disabled={isPending}
+              />
+            </View>
+          </RnAnimatedView>
         )}
       </React.Fragment>
     );
@@ -387,14 +281,29 @@ RequestNotificationModal.displayName = "RequestNotificationModal";
 export default memo(RequestNotificationModal);
 
 const styles = StyleSheet.create({
-  content_view: {
-    flex: 1,
-    flexDirection: "column",
-    justifyContent: "flex-start",
+  panel: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 10,
   },
-  USER_details: {
+  scrollContent: {
+    paddingBottom: 16,
+  },
+  riderRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
+  },
+  riderIdentity: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  riderRating: {
+    flexDirection: "row",
     alignItems: "center",
   },
 });

@@ -101,7 +101,7 @@ android {
         applicationId 'com.transli.mobilitycaptain'
         minSdkVersion 27
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 80
+        versionCode 97
         versionName packageJson.version
         resValue "string", "expo_runtime_version", packageJson.version
     }
@@ -148,9 +148,20 @@ android {
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
+    // In-app MapsGeometry Nitro module. The custom CMakeLists replicates
+    // RN's default-app-setup (libappmodules.so) and additionally builds
+    // libMapsGeometry.so; the react gradle plugin still injects prefab,
+    // ANDROID_STL and the REACT_ANDROID_DIR/PROJECT_BUILD_DIR arguments.
     externalNativeBuild {
         cmake {
             version "3.22.1"
+            path file('../CMakeLists.txt')
+        }
+    }
+    sourceSets {
+        main {
+            // Nitrogen-generated Kotlin specs for MapsGeometry.
+            java.srcDirs += ["${rootDir}/../nitrogen/generated/android/kotlin"]
         }
     }
 }
@@ -263,6 +274,14 @@ afterEvaluate {
     tasks.configureEach { task ->
         if (task.name.startsWith('configureCMake') || task.name.startsWith('generateJsonModel')) {
             task.dependsOn(':react-native-nitro-modules:prepareHeaders')
+            // The app's own CMake (in-app MapsGeometry Nitro module) does
+            // find_package(react-native-nitro-modules) too, so it needs the
+            // same ordering fix as react-native-mmkv below.
+            if (task.name.toLowerCase().contains('debug')) {
+                task.dependsOn(':react-native-nitro-modules:externalNativeBuildDebug')
+            } else {
+                task.dependsOn(':react-native-nitro-modules:externalNativeBuildRelease')
+            }
         }
     }
 

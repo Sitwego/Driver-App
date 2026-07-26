@@ -12,8 +12,10 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
+import com.margelo.nitro.mapsgeometry.MapsGeometryOnLoad
 import com.tencent.mmkv.MMKV
 import com.transli.mobilitycaptain.RpcChannelManager
+import com.transli.mobilitycaptain.common.utils.OverlaySettingsPackage
 
 import expo.modules.ApplicationLifecycleDispatcher
 // import expo.modules.ReactNativeHostWrapper
@@ -52,6 +54,7 @@ class MainApplication : Application(), ReactApplication {
           // add(MyReactNativePackage())
           add(GeoKalmanPackage())
           add(AppConfigPackage())
+          add(OverlaySettingsPackage())
         }
     )
   }
@@ -59,6 +62,9 @@ class MainApplication : Application(), ReactApplication {
     override fun onCreate() {
         super.onCreate()
         SoLoader.init(this, OpenSourceMergedSoMapping)
+        // Registers the MapsGeometry Nitro hybrid object (vehicle-tracking
+        // route geometry) before any JS calls createHybridObject().
+        MapsGeometryOnLoad.initializeNative()
         MMKV.initialize(this)
         AppConfig.initFromMMKV()
         if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {

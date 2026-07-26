@@ -1,9 +1,7 @@
 package com.transli.mobilitycaptain;
 
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.media.MediaPlayer;
 import android.os.IBinder;
 import android.util.Log;
@@ -42,8 +40,27 @@ public class GrpcNotificationService extends Service implements GrpcInterFace {
 
     private String token;
 
+    private static volatile GrpcNotificationService instance;
+
     private ReactApplicationContext reactContext;
     private DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter;
+
+    /**
+     * Re-attach the running instance (if any) to the current React context.
+     * Called from the RN lifecycle on host resume, because this service
+     * outlives the activity when the user swipes the app away.
+     */
+    public static void refreshReactContextIfRunning() {
+        GrpcNotificationService service = instance;
+        if (service == null) return;
+        ReactApplicationContext context = GeoKalmanModule.getReactAppContext();
+        if (context == null) return;
+        service.reactContext = context;
+        service.eventEmitter = context.getJSModule(
+                DeviceEventManagerModule.RCTDeviceEventEmitter.class
+        );
+        Log.d(TAG, "Re-attached to new React context");
+    }
 
     @Nullable
     @Override
@@ -54,23 +71,31 @@ public class GrpcNotificationService extends Service implements GrpcInterFace {
     @Override
     public void onCreate() {
         super.onCreate();
+        instance = this;
         this.reactContext = GeoKalmanModule.getReactAppContext();
+        // Ensure the token is loaded from MMKV even when this service is started
+        // headless (BootReceiver after reboot/app update), where the RN lifecycle
+        // that normally calls RpcChannelManager.init() has not run.
+        RpcChannelManager.init();
         this.token = RpcChannelManager.getToken();
-        SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(
-                getApplicationContext().getString(R.string.sit_we_go_shared_preferences),
-                Context.MODE_PRIVATE
-        );
         channel = RpcChannelManager.getChannel(this);
-        this.eventEmitter = this.reactContext.getJSModule(
-                DeviceEventManagerModule.RCTDeviceEventEmitter.class
-        );
-
+        // React context is null on a headless start — ride offers still surface
+        // via the overlay/sound path in onMessage; JS events resume once the
+        // app UI is opened and re-registers.
+        if (this.reactContext != null) {
+            this.eventEmitter = this.reactContext.getJSModule(
+                    DeviceEventManagerModule.RCTDeviceEventEmitter.class
+            );
+        } else {
+            Log.w(TAG, "React context unavailable (headless start) — JS events disabled");
+        }
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         Log.w(TAG, "Destroying GRPC service");
+        instance = null;
         retryExecutor.shutdownNow();
         // Only null out the local reference — RpcChannelManager owns the channel
         // lifecycle. Calling RpcChannelManager.shutdown() here would destroy the
@@ -146,6 +171,14 @@ public class GrpcNotificationService extends Service implements GrpcInterFace {
         final String type = notificationPayload.getEntity().getType();
         final String entityId = notificationPayload.getEntity().getId();
         final String data = notificationPayload.getEntity().getData();
+        final long receivedAt = System.currentTimeMillis();
+
+        // Persist before anything else: when the app was swiped away the React
+        // context is dead and the emit below is skipped, so this slot is the
+        // only way the offer survives until JS comes back up and drains it.
+        PendingRideRequestStore.save(
+                getApplicationContext(), id, category, type, entityId, data, receivedAt
+        );
 
         // Show overlay and play sound regardless of React bridge state
         NotificationController.showPopUpNotification(getApplicationContext(), data);
@@ -162,6 +195,9 @@ public class GrpcNotificationService extends Service implements GrpcInterFace {
             msg.putString("type", type);
             msg.putString("entity_id", entityId);
             msg.putString("data", data);
+            // Same timestamp on the live path so both delivery routes carry an
+            // identically shaped payload and the request timer has one rule.
+            msg.putDouble("received_at", receivedAt);
             this.eventEmitter.emit("onRideReqMessage", msg);
         });
     }

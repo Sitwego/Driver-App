@@ -72,6 +72,12 @@ type RideRequsetNotification = {
   id: string;
   ttl: string;
   vc: string;
+  /**
+   * Wall-clock ms stamped natively when the offer arrived. Present on both the
+   * live event and the replayed one, so the request timer can count down the
+   * time that is actually left rather than restarting.
+   */
+  received_at?: number;
 };
 
 type RideNotificationType = {
@@ -80,6 +86,8 @@ type RideNotificationType = {
   category: string;
   id: string;
   ttl?: string;
+  /** @see RideRequsetNotification.received_at */
+  received_at?: number;
   opened?: boolean;
   [key: string]: any;
 };

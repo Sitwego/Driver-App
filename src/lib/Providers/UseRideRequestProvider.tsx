@@ -1,10 +1,16 @@
 import React, { useCallback, useEffect } from "react";
+import { AppState } from "react-native";
 
 import { DriverLocationProvider } from "~/lib/Providers/DriverLocationProvider";
 import { RideEvent, RideRequsetNotification } from "~/types/rideRequstTypes";
-import { formatedRideData, parseRideRequestData } from "~/utils/rideUtils";
+import {
+  formatedRideData,
+  parseRideRequestData,
+  rideRequestRemainingSec,
+} from "~/utils/rideUtils";
 
 import {
+  consumePendingRideRequest,
   nativeAppEvents,
   startEventService,
   stopEventService,
@@ -111,7 +117,12 @@ export const UseRideRequestProvider: React.FC<React.PropsWithChildren<{}>> = ({
     initRideStatus,
   );
 
+  // Id of the offer currently held in state, so the live event and the native
+  // replay slot cannot both apply the same request.
+  const appliedRequestId = React.useRef<string | null>(null);
+
   const removeRide = React.useCallback(() => {
+    appliedRequestId.current = null;
     setRideState({ type: "REMOVE_RIDE" });
   }, [setRideState]);
 
@@ -152,30 +163,72 @@ export const UseRideRequestProvider: React.FC<React.PropsWithChildren<{}>> = ({
     },
     [removeRide],
   );
+  const applyRideRequest = useCallback(
+    (ride_request: RideRequsetNotification) => {
+      // Every offer is both emitted live and written to the native replay slot,
+      // so the same request can arrive twice. Re-applying it hands the modal a
+      // fresh `ride` identity, which re-runs its open effect and toggles the
+      // already-open modal shut — the request appears to flash and vanish.
+      if (ride_request.id && ride_request.id === appliedRequestId.current) {
+        return;
+      }
+      const ride_data = parseRideRequestData(ride_request);
+      if (!ride_data.data) return;
+      appliedRequestId.current = ride_request.id ?? null;
+      let notificationData = formatedRideData(ride_data.data);
+      setRideState({
+        type: "SET_RIDE",
+        payload: {
+          ...ride_data,
+          data: notificationData,
+        },
+      });
+    },
+    [setRideState],
+  );
+
+  /**
+   * Recover an offer that arrived while the React context was dead — the app
+   * swiped away, or still cold-starting. The native emitter does not buffer, so
+   * without this the driver taps the overlay, the app opens, and the request is
+   * simply gone. Native persists every offer; we drain that slot here.
+   */
+  const drainPendingRideRequest = useCallback(async () => {
+    try {
+      const pending: RideRequsetNotification | null =
+        await consumePendingRideRequest();
+      if (!pending) return;
+      // Expired while the app was booting — the server has almost certainly
+      // reassigned it, so surfacing it would only produce a failed accept.
+      if (rideRequestRemainingSec(pending.received_at) <= 0) return;
+      // Already working a ride: a stale offer must not hijack the screen.
+      if (rideStore.get(["ride"])) return;
+      applyRideRequest(pending);
+    } catch (error) {
+      console.warn("Failed to drain pending ride request:", error);
+    }
+  }, [applyRideRequest]);
+
   useEffect(() => {
     const subs = [
-      nativeAppEvents.addListener(
-        "onRideReqMessage",
-        (ride_request: RideRequsetNotification) => {
-          const ride_data = parseRideRequestData(ride_request);
-          if (!ride_data.data) return;
-          let notificationData = formatedRideData(ride_data.data);
-          setRideState({
-            type: "SET_RIDE",
-            payload: {
-              ...ride_data,
-              data: notificationData,
-            },
-          });
-        },
-      ),
+      nativeAppEvents.addListener("onRideReqMessage", applyRideRequest),
       nativeAppEvents.addListener("onRideEvent", event_handler),
     ];
 
     return () => {
       subs.forEach((sub) => sub.remove());
     };
-  }, [event_handler]);
+  }, [event_handler, applyRideRequest]);
+
+  useEffect(() => {
+    // On mount covers the cold start from the overlay; on foreground covers a
+    // warm resume where the activity was destroyed but the process survived.
+    drainPendingRideRequest();
+    const sub = AppState.addEventListener("change", (status) => {
+      if (status === "active") drainPendingRideRequest();
+    });
+    return () => sub.remove();
+  }, [drainPendingRideRequest]);
 
   const rideStatusApi = React.useMemo(
     () => ({
