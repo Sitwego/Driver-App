@@ -1,0 +1,21 @@
+{
+  "$schema": "https://nitro.margelo.com/nitro.schema.json",
+  "cxxNamespace": ["mapsgeometry"],
+  "ios": {
+    "iosModuleName": "MapsGeometry"
+  },
+  "android": {
+    "androidNamespace": ["mapsgeometry"],
+    "androidCxxLibName": "MapsGeometry"
+  },
+  "autolinking": {
+    "MapsGeometry": {
+      "android": {
+        "language": "kotlin",
+        "implementationClassName": "HybridMapsGeometry"
+      }
+    }
+  },
+  "ignorePaths": ["node_modules", "dist", "android", ".expo"],
+  "gitAttributesGeneratedFlag": false
+}

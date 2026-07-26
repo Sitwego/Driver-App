@@ -1,3 +1,4 @@
+import { Canvas, Rect } from "@shopify/react-native-skia";
 import { useEffect } from "react";
 import {
   useSharedValue,
@@ -6,22 +7,25 @@ import {
   useDerivedValue,
   runOnJS,
 } from "react-native-reanimated";
-import { Canvas, Rect } from "@shopify/react-native-skia";
+
 import { width } from "~/utils/metrics/dimm";
 
-const BAR_WIDTH = width * 0.95;
+const DEFAULT_BAR_WIDTH = width * 0.95;
 const BAR_HEIGHT = 10;
 const BORDER_WIDTH = 3;
 
 const ProgressBarTimer = ({
   duration = 20,
   close,
+  barWidth = DEFAULT_BAR_WIDTH,
 }: {
   duration: number;
   close: () => void;
+  /** Track width in px. Defaults to the original 95%-of-screen bar. */
+  barWidth?: number;
 }) => {
   const progress = useSharedValue(1);
-  const animatedWidth = useSharedValue(BAR_WIDTH - 3);
+  const animatedWidth = useSharedValue(barWidth - 3);
 
   // Derive color from animatedColor
   const color = useDerivedValue(() =>
@@ -48,7 +52,7 @@ const ProgressBarTimer = ({
 
   return (
     <Canvas
-      style={{ width: BAR_WIDTH, height: BAR_HEIGHT, alignSelf: "center" }}
+      style={{ width: barWidth, height: BAR_HEIGHT, alignSelf: "center" }}
     >
       <Rect
         x={2}

@@ -9,6 +9,7 @@ import {
 import { useUserState } from "~/lib/state/userState";
 import { locationStore, rideStore } from "~/lib/store";
 import { RideNotificationType } from "~/types/rideRequstTypes";
+import { isNowBeforeOrEqual } from "~/utils/dates/utils";
 import { GeoPoint, getLocationAsync } from "~/utils/geo";
 
 import { useApiClient } from "./useApiClient";
@@ -88,8 +89,8 @@ export function useCreateRideRequestMutation() {
     return (rideState as { ride: RideNotificationType })?.ride;
   }, [rideState]);
   const driver_is_on_free_trial = useMemo(
-    () => userState?.isOnFreeTrial,
-    [userState?.isOnFreeTrial],
+    () => (isNowBeforeOrEqual(userState?.free_trial_end_date) ? false : true),
+    [userState?.free_trial_end_date],
   );
 
   return useMutation({

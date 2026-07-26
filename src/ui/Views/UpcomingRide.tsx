@@ -1,11 +1,15 @@
 import { PressableScale as Pressable } from "pressto";
-import { useCallback, useMemo, memo } from "react";
+import { useCallback, useEffect, useMemo, memo, useRef, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAppBottomSheet } from "~/components/AppBottomSheet";
 import Icon from "~/components/Icons";
 import { useBottomSheet } from "~/components/RnBottomSheet/BottomSheetProvider";
 import RnText from "~/components/RnText";
+import RnTextInput, {
+  type AnimatedTextInputRef,
+} from "~/components/RnTextInput";
 import { RnView } from "~/components/RnView";
 import TimerComponent, { useOvertimeCharge } from "~/components/TimerComponent";
 import PickupToDestination from "~/components/route/PickUpDropOff-Indicator";
@@ -28,6 +32,63 @@ type Props = {
   endRide: () => Promise<void>;
 };
 
+const CancelRideNote = ({ onSubmit }: { onSubmit: (note: string) => void }) => {
+  const { colors, fonts } = useAppTheme();
+  const [note, setNote] = useState("");
+  const inputRef = useRef<AnimatedTextInputRef>(null);
+
+  // Focus after the sheet's own animate-in so the keyboard opens against its
+  // final size, not a mid-animation one.
+  useEffect(() => {
+    const timer = setTimeout(() => inputRef.current?.focus(), 350);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <View style={styles.cancelNoteContainer}>
+      <RnText style={[atoms.text_lg, { fontFamily: fonts.bold.fontFamily }]}>
+        Cancel ride request
+      </RnText>
+      <RnTextInput
+        ref={inputRef}
+        style={[
+          styles.cancelNoteInput,
+          {
+            fontFamily: fonts.regular.fontFamily,
+            color: colors.text,
+            borderColor: colors.lightBackground,
+          },
+        ]}
+        autoCorrect
+        multiline
+        numberOfLines={4}
+        maxLength={300}
+        textAlignVertical="top"
+        value={note}
+        onChangeText={setNote}
+        placeholder="Add a note for this cancellation (optional)"
+        placeholderTextColor={colors.lightGray}
+      />
+      <Pressable
+        onPress={() => onSubmit(note)}
+        style={[
+          styles.START_button,
+          { backgroundColor: themes.red_600, width: "100%" },
+        ]}
+      >
+        <RnText
+          style={[
+            atoms.text_md,
+            { color: themes.bg_100, fontFamily: fonts.bold.fontFamily },
+          ]}
+        >
+          Cancel Request
+        </RnText>
+      </Pressable>
+    </View>
+  );
+};
+
 export const UpcomingRideInfo = memo(function UpcomingRideInfo({
   showOtpSheet,
   setArrived,
@@ -35,6 +96,7 @@ export const UpcomingRideInfo = memo(function UpcomingRideInfo({
   const { fonts } = useAppTheme();
   const { bottom } = useSafeAreaInsets();
   const { hide } = useBottomSheet();
+  const sheets = useAppBottomSheet();
   const { removeRide, rideState } = useRideRequest();
   const { rideStatus } = useRideRequestStatus();
   const { mutateAsync: cancelRide, isPending } = useCancelRideRequest();
@@ -61,16 +123,42 @@ export const UpcomingRideInfo = memo(function UpcomingRideInfo({
 
   const overtimeCharge = useOvertimeCharge();
 
-  const onCanceltRideRequest = useCallback(async () => {
+  const onCanceltRideRequest = useCallback(
+    async (note: string) => {
+      await cancelRide({
+        reason: "Unspecified",
+        note: note.trim() || "None",
+      }).catch((err) => {
+        console.log("Error cancelling ride request:", err);
+      });
+      removeRide();
+    },
+    [cancelRide, removeRide],
+  );
+
+  const confirmCancelRide = useCallback(async () => {
+    // A same-window portal sheet always renders below the TrueSheet-based
+    // ride-info sheet (RnBottomSheetView.tsx) regardless of tree order, and
+    // `nativeOverlay` (a separate native Dialog window) doesn't get the
+    // Activity's `adjustResize` behavior, so keyboard: "avoid" can't work
+    // inside it (verified on-device: autofocus never opens the keyboard, and
+    // a manual tap opens it but hides the sheet content behind it). Dismiss
+    // the TrueSheet first so the note sheet can render through the default
+    // portal, where keyboard avoidance is verified working.
     await hide();
-    await cancelRide({
-      reason: "Unspecified",
-      note: "None",
-    }).catch((err) => {
-      console.log("Error cancelling ride request:", err);
-    });
-    removeRide();
-  }, [cancelRide, hide, removeRide]);
+    const sheetId = sheets.present(
+      <CancelRideNote
+        onSubmit={(note) => {
+          sheets.dismiss(sheetId);
+          onCanceltRideRequest(note);
+        }}
+      />,
+      {
+        keyboard: "avoid",
+        detents: ["content"],
+      },
+    );
+  }, [hide, sheets, onCanceltRideRequest]);
 
   return (
     <View style={styles.UP_container}>
@@ -207,8 +295,8 @@ export const UpcomingRideInfo = memo(function UpcomingRideInfo({
             ]}
           >
             <Pressable
-              onPress={onCanceltRideRequest}
-              enabled={!isPending}
+              onPress={confirmCancelRide}
+              disabled={isPending}
               style={[
                 styles.START_button,
                 { backgroundColor: themes.red_600, width: "95%", zIndex: 999 },
@@ -234,6 +322,18 @@ const styles = StyleSheet.create({
   UP_container: {
     flex: 1,
     paddingVertical: 10,
+  },
+  cancelNoteContainer: {
+    padding: 16,
+    gap: 12,
+  },
+  cancelNoteInput: {
+    width: "100%",
+    minHeight: 96,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
   },
   Up_rideData: {
     marginBottom: 8,

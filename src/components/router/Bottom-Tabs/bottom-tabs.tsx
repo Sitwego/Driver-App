@@ -4,7 +4,7 @@ import { useLinkBuilder, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { PressableScale } from "pressto";
 import * as React from "react";
-import { Alert, DeviceEventEmitter, View } from "react-native";
+import { Alert, AppState, DeviceEventEmitter, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
@@ -25,6 +25,7 @@ import { useSubscriptionModal } from "~/lib/Providers/SubscriptionProvider";
 import { useRideRequest } from "~/lib/Providers/UseRideRequestProvider";
 import {
   canDrawOverlays,
+  isGeokalmanServiceRunning,
   openOverlaySettings,
   startBackgroundService,
   stopGeokalmanService,
@@ -77,7 +78,21 @@ function TabBar({ state, descriptors, navigation }: any) {
   const nav =
     useNavigation<NativeStackNavigationProp<RootStackNavigationType>>();
   const insets = useSafeAreaInsets();
-  const [isOnduty, setOnduty] = React.useState<boolean>(false);
+  // Initialize from the native service synchronously so reopening the app
+  // while tracking is running never flashes "offline". Falls back to false
+  // when the sync bridge method is unavailable (e.g. legacy remote debugging);
+  // the async syncFromNative effect below corrects it.
+  const [isOnduty, setOnduty] = React.useState<boolean>(() => {
+    try {
+      return !!isGeokalmanServiceRunning();
+    } catch {
+      return false;
+    }
+  });
+  // True while cb() is mutating online state — blocks the native re-check
+  // from clobbering the switch mid-transition (goOnline resolved but the
+  // service not yet reported running, and vice versa).
+  const togglingRef = React.useRef(false);
   const userState = useUserState();
   const { rideState } = useRideRequest();
   const { open } = useSubscriptionModal();
@@ -110,11 +125,26 @@ function TabBar({ state, descriptors, navigation }: any) {
     [vehicle_type],
   );
 
+  // Native service state is the source of truth for on-duty: re-sync on
+  // mount and whenever the app returns to the foreground (the service keeps
+  // running after task swipe-away / reboot, while this JS state resets).
   React.useEffect(() => {
-    (async function () {
-      const _isOnduty = await isDriverOnline();
-      setOnduty(_isOnduty);
-    })();
+    let cancelled = false;
+    const syncFromNative = async () => {
+      if (togglingRef.current) return;
+      const online = await isDriverOnline();
+      if (!cancelled && !togglingRef.current) {
+        setOnduty(online);
+      }
+    };
+    syncFromNative();
+    const sub = AppState.addEventListener("change", (status) => {
+      if (status === "active") syncFromNative();
+    });
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
   }, [isDriverOnline]);
 
   const hasSession = React.useMemo(
@@ -174,6 +204,7 @@ function TabBar({ state, descriptors, navigation }: any) {
 
   const cb = React.useCallback(
     async (state: boolean) => {
+      togglingRef.current = true;
       setOnduty(state);
       try {
         if (state) {
@@ -205,6 +236,8 @@ function TabBar({ state, descriptors, navigation }: any) {
         // API failed — revert slider to previous state
         console.warn("Failed to change online state");
         setOnduty(!state);
+      } finally {
+        togglingRef.current = false;
       }
     },
     [goOffline, goOnline, userState.profile_id, userState.rating],

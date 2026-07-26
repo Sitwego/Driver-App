@@ -29,6 +29,10 @@
 -keep class com.transli.mobilitycaptain.**Grpc { *; }
 -keep class com.transli.mobilitycaptain.**Grpc$* { *; }
 
+# Nitro MapsGeometry hybrid object: constructed from C++ by JNI descriptor,
+# methods resolved reflectively — nothing may be renamed or stripped.
+-keep class com.margelo.nitro.** { *; }
+
 # Expo modules – preserve runtime type resolution
 -keep class kotlin.Metadata { *; }
 -keepattributes RuntimeVisibleAnnotations

@@ -16,6 +16,7 @@ import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 
+import com.transli.mobilitycaptain.common.utils.OverlaySettings;
 import com.transli.mobilitycaptain.helpers.ThreadUtils;
 import mad.location.manager.lib.Services.ServicesHelper;
 
@@ -46,6 +47,15 @@ public class GeoKalmanModule extends ReactContextBaseJavaModule {
                 if (GeoKalman.isGeokalmanServiceRunning(reactContext)) {
                     ServicesHelper.getLocationService(reactContext, service -> service.resume());
                 }
+                // The services survive task removal (stopWithTask=false, no stop in
+                // onHostDestroy), so after the user swipes the app away and reopens
+                // it they hold a dead React context. Re-attach so JS events
+                // (onGeoKalman, onRideReqMessage) reach the new instance.
+                GeoKalman runningService = GeoKalman.getInstance();
+                if (runningService != null) {
+                    runningService.refreshReactContext();
+                }
+                GrpcNotificationService.refreshReactContextIfRunning();
                 android.util.Log.d("LifecycleEvent", "onHostResume: ACTIVITY_STATUS set to onResume");
             }
 
@@ -62,7 +72,9 @@ public class GeoKalmanModule extends ReactContextBaseJavaModule {
                 SharedPreferences.Editor editor = sharedPref.edit();
                 editor.putString(activityStatusKey, "onDestroy");
                 editor.apply();
-                GeoKalman.stopGeokalmanService(reactContext);
+                // Deliberately NOT stopping GeoKalman here: tracking must keep
+                // running when the user swipes the app away. Going offline is an
+                // explicit action (JS stopGeokalmanService) or logout.
                 android.util.Log.d("LifecycleEvent", "onHostDestroy: ACTIVITY_STATUS set to onDestroy");
             }
         });
@@ -176,19 +188,41 @@ public class GeoKalmanModule extends ReactContextBaseJavaModule {
 
     @ReactMethod(isBlockingSynchronousMethod = true)
     public boolean canDrawOverlays() {
-        return Settings.canDrawOverlays(reactApplicationContext);
+        return OverlaySettings.canDrawOverlays(reactApplicationContext);
     }
 
+    /**
+     * Kept for existing JS callers; delegates to {@link OverlaySettings} so the
+     * OEM-specific intent handling lives in exactly one place.
+     */
     @ReactMethod
     public void openOverlaySettings() {
         Activity activity = getCurrentActivity();
-        if (activity == null) return;
-        Intent intent = new Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:" + reactApplicationContext.getPackageName())
-        );
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        activity.startActivity(intent);
+        OverlaySettings.open(activity != null ? activity : reactApplicationContext);
+    }
+
+    /**
+     * Read and clear the ride request that arrived while the React context was
+     * dead (app swiped away). Resolves null when there is nothing pending.
+     */
+    @ReactMethod
+    public void consumePendingRideRequest(Promise promise) {
+        try {
+            promise.resolve(PendingRideRequestStore.consume(reactApplicationContext));
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
+    }
+
+    /** Drop the pending offer once JS has handled or expired it. */
+    @ReactMethod
+    public void clearPendingRideRequest(Promise promise) {
+        try {
+            PendingRideRequestStore.clear(reactApplicationContext);
+            promise.resolve(true);
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
     }
 
     @ReactMethod void saveTokenToSharedPreferences(String token, Promise promise) {

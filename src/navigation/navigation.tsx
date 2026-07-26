@@ -19,6 +19,13 @@ export const getCurrentRouteName = () => {
   return null;
 };
 
+export const addNavigationStateListener = (
+  listener: () => void,
+): (() => void) => {
+  const subscription = navigatetionRef.addListener("state", listener);
+  return subscription;
+};
+
 export const navigate = (name: string, params?: object) => {
   if (navigatetionRef.isReady()) {
     return Promise.race([

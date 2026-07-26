@@ -6,6 +6,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureDetectorProvider } from "react-native-screens/gesture-handler";
 
+import { AppBottomSheetProvider } from "./components/AppBottomSheet";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { ToastComponent } from "./components/Toast";
 import RootRouter from "./components/router/router";
@@ -55,11 +56,13 @@ const InnerApp = () => {
   return (
     <GestureHandlerRootView style={[styles.container]}>
       <GestureDetectorProvider>
-        <LocationGateProvider enabled={!!state.token}>
-          <RootRouter />
-          <ToastComponent />
-          <OfflineIndicator />
-        </LocationGateProvider>
+        <AppBottomSheetProvider>
+          <LocationGateProvider enabled={!!state.token}>
+            <RootRouter />
+            <ToastComponent />
+            <OfflineIndicator />
+          </LocationGateProvider>
+        </AppBottomSheetProvider>
       </GestureDetectorProvider>
     </GestureHandlerRootView>
   );

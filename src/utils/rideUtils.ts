@@ -3,7 +3,36 @@ import {
   RideRequsetData,
   RideRequsetNotification,
 } from "~/types/rideRequstTypes";
+
 import { GeoPoint } from "./geo";
+
+/**
+ * How long a driver has to act on a ride request, in seconds. Drives both the
+ * in-app countdown bar and the cut-off for replaying an offer that arrived
+ * while the app was killed.
+ */
+export const RIDE_REQUEST_TTL_SEC = 20;
+
+/**
+ * Seconds left on a ride request given when it arrived.
+ *
+ * A missing `receivedAt` means the offer came straight off the live native
+ * event with no timestamp (older payload shape), so it gets the full window.
+ * A result of `0` means the offer is dead and must not be shown.
+ */
+export function rideRequestRemainingSec(
+  receivedAt?: number,
+  now: number = Date.now(),
+): number {
+  if (!receivedAt) return RIDE_REQUEST_TTL_SEC;
+  const elapsedSec = (now - receivedAt) / 1000;
+  // Upper clamp guards against device clock skew handing out a window longer
+  // than the driver actually has.
+  return Math.min(
+    RIDE_REQUEST_TTL_SEC,
+    Math.max(0, RIDE_REQUEST_TTL_SEC - elapsedSec),
+  );
+}
 
 export function parseRideRequestData({
   data,

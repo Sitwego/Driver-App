@@ -28,11 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.concurrent.Executors;
 import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 import mad.location.manager.lib.Commons.Coordinates;
 import mad.location.manager.lib.Commons.GeoPoint;
@@ -226,9 +222,6 @@ public class KalmanLocationService extends Service
     public GPSLocationProvider gpsLocationProvider;
     private PowerManager.WakeLock m_wakeLock;
 
-    private ScheduledExecutorService scheduler;
-    private ScheduledFuture<?> scheduledFuture;
-
     private boolean m_gpsEnabled = false;
     private boolean m_sensorsEnabled = false;
 
@@ -403,13 +396,11 @@ public class KalmanLocationService extends Service
     public void onCreate() {
         super.onCreate();
         thread.start();
-        scheduler = Executors.newSingleThreadScheduledExecutor();
         fusedLocationProvider = new FusedLocationProvider(this, this);
         gpsLocationProvider = new GPSLocationProvider(this, this, this);
         m_sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         PowerManager m_powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         m_wakeLock = m_powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
-        startPeriodicLocationUpdates();
 
         if (m_sensorManager == null) {
             m_sensorsEnabled = false;
@@ -430,10 +421,6 @@ public class KalmanLocationService extends Service
     public void onDestroy() {
         super.onDestroy();
         thread.quitSafely();
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(true);
-        }
-        scheduler.shutdown();
         if (m_eventLoopThread != null) {
             m_eventLoopThread.interrupt();
         }
@@ -450,11 +437,6 @@ public class KalmanLocationService extends Service
         // Unregister sensor listeners to stop queue buildup
         for (Sensor sensor : m_lstSensors) {
             m_sensorManager.unregisterListener(this, sensor);
-        }
-
-        // Stop periodic location updates
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(true);
         }
 
         // Drain the queue — stale sensor data is useless after resume
@@ -484,9 +466,6 @@ public class KalmanLocationService extends Service
                     this, sensor,
                     Utils.hertz2periodUs(m_settings.sensorFrequencyHz));
         }
-
-        // Restart periodic location updates
-        startPeriodicLocationUpdates();
 
         // Restart event loop thread if it was killed by a previous stop() call.
         // Without this, sensors re-register and queue fills up but nothing drains it.
@@ -750,30 +729,5 @@ public class KalmanLocationService extends Service
                 velErr,
                 m_magneticDeclination);
         m_sensorDataQueue.add(sdi);
-    }
-
-    private void startPeriodicLocationUpdates() {
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(true);
-        }
-        scheduledFuture = scheduler.scheduleWithFixedDelay(
-                () -> {
-                    try {
-                        // Skip if paused
-                        if (m_isPaused) return;
-
-                        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                            // TODO
-                        } else {
-                            fusedLocationProvider.onCurrentLocationChanged(m_settings.useCurrent);
-                        }
-                    } catch (Exception e) {
-                        Log.e("LocationService", "Error in location update", e);
-                    }
-                },
-                0,
-                5,
-                TimeUnit.SECONDS
-        );
     }
 }

@@ -43,9 +43,9 @@ export function sphericalCosinesDistance(
 }
 export function formatDistance(distanceInMeters: number): string {
   if (distanceInMeters >= 1000) {
-    return `${Math.floor(distanceInMeters / 1000)}Km`;
+    return `${(distanceInMeters / 1000).toFixed(1)} Km`;
   } else if (distanceInMeters > 0) {
-    return `${distanceInMeters}M`;
+    return `${distanceInMeters} M`;
   } else {
     return "0";
   }

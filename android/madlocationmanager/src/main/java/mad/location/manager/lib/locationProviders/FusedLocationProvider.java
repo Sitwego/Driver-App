@@ -45,9 +45,9 @@ public class FusedLocationProvider {
         @Override
         public void onLocationResult(@NonNull LocationResult locationResult) {
             super.onLocationResult(locationResult);
-            // FIX #5: dispatch location only once; previously it was sent twice when accuracy < 30m
+            // FIX #5: dispatch location only once; previously it was sent twice when accuracy < 40m
             Location lastLocation = locationResult.getLastLocation();
-            if (lastLocation != null && lastLocation.hasAccuracy() && lastLocation.getAccuracy() < 20) {
+            if (lastLocation != null && lastLocation.hasAccuracy() && lastLocation.getAccuracy() < 40) {
                 Log.d("FusedLocationProvider", "Watched Last location: " + lastLocation);
                 m_locationProvider.onLocationAvailable(lastLocation);
             } else if (lastLocation != null) {
@@ -86,17 +86,20 @@ public class FusedLocationProvider {
 
     @RequiresPermission("android.permission.ACCESS_FINE_LOCATION")
     public void startLocationUpdates(Settings m_settings, HandlerThread thread) {
-        // Default interval in seconds
-        int locationRequestInterval = 10;
-        int intervalMs = locationRequestInterval * m_settings.gpsMinTime;
-        Log.d("FusedLocationProvider", "intervalMs: " + intervalMs); //20-000
-        // Default max waiting time to get location in milliseconds
-        int locationMaxTimeThreshold = 1000;
+        // Real-time single-source cadence (~1.5 s). This continuous fused stream
+        // is now the ONLY position source during a ride: the redundant 5 s
+        // getCurrentLocation poll that used to run in parallel was removed — two
+        // independent fused fixes disagreeing by a few meters were emitted out of
+        // order, making the customer-side marker leapfrog back and forth. The
+        // customer app interpolates between fixes, so a tight ordered stream is
+        // all it needs.
+        int intervalMs = 1500;
+        Log.d("FusedLocationProvider", "intervalMs: " + intervalMs);
         m_locationRequest = new LocationRequest.Builder(intervalMs)
                 // Time-based updates
                 .setIntervalMillis(intervalMs)                     // Target update interval
-                .setMinUpdateIntervalMillis(intervalMs / 2)        // Fastest allowed update rate
-                .setMaxUpdateDelayMillis(locationMaxTimeThreshold)           // Maximum time without updates
+                .setMinUpdateIntervalMillis(1000)                  // Fastest allowed update rate
+                .setMaxUpdateDelayMillis(intervalMs)               // No batching — deliver promptly
 
                 // Distance-based updates - device will update when moved this far
                 .setMinUpdateDistanceMeters(m_settings.gpsMinDistance)
@@ -129,7 +132,7 @@ public class FusedLocationProvider {
                         if (loc != null) {
                             Log.d("FusedLocationProvider", "Current getCurrentLocation: " + loc);
                             if (loc.hasAccuracy()) {
-                                if (loc.getAccuracy() < 20){
+                                if (loc.getAccuracy() < 35){
                                     m_locationProvider.onLocationAvailable(loc);
                                 } else {
                                     Log.d("FusedLocationProvider", "Current location accuracy is too high");
@@ -150,7 +153,7 @@ public class FusedLocationProvider {
 
                             if (loc.hasAccuracy() && locationAgeMs < 5000) {
                                 Log.e("FusedLocationProvider", "Last getLastLocation: " + loc);
-                                if (loc.getAccuracy() < 20){
+                                if (loc.getAccuracy() < 30){
                                     m_locationProvider.onLocationAvailable(loc);
                                 } else {
                                     Log.d("FusedLocationProvider", "Current location accuracy is too high");

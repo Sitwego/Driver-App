@@ -163,7 +163,12 @@ public class OverlayPopUp extends Service {
             exclusiveTagText.setVisibility(View.VISIBLE);
 
             ImageButton closeButton = popUpView.findViewById(R.id.closeButton);
-            closeButton.setOnClickListener(v -> stopSelf());
+            closeButton.setOnClickListener(v -> {
+                // An explicitly dismissed offer must not resurrect as a modal
+                // the next time the driver opens the app.
+                PendingRideRequestStore.clear(getApplicationContext());
+                stopSelf();
+            });
 
             setOnClickListener();
         } catch (Exception e) {
