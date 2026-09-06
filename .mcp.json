@@ -7,7 +7,8 @@
         "mcp"
       ],
       "env": {
-        "ARGENT_MCP_LOG": "C:\\Users\\user\\.argent\\mcp-calls.log"
+        "ARGENT_MCP_LOG": "C:\\Users\\user\\.argent\\mcp-calls.log",
+        "ANDROID_HOME": "C:\\Users\\user\\AppData\\Local\\Android\\Sdk"
       }
     }
   }

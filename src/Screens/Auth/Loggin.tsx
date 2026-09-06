@@ -10,6 +10,7 @@ import PressableWithFeedBack from "~/components/PressableButton/PressableWithFee
 import RnText from "~/components/RnText";
 import RnTextInput, { AnimatedTextInputRef } from "~/components/RnTextInput";
 import { RnView } from "~/components/RnView";
+import { getDeviceId } from "~/lib/deviceId";
 import { useUserApi } from "~/lib/state/userState";
 import { s } from "~/styles/Common-Styles";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
@@ -65,7 +66,9 @@ export const LogInScreen: React.FC<Props> = ({ setScreen }) => {
       await login({
         phone_number: authState.phone_number!,
         password,
-        device_id: "some-device-id",
+        // Undefined on iOS, or when the platform will not give us one. The
+        // field is then omitted and login proceeds exactly as before.
+        device_id: getDeviceId(),
       });
     } catch (err) {
       setError("root", { message: getLoginErrorMessage(err) });

@@ -1,4 +1,5 @@
 import {
+  DriverFareSplit,
   RideData,
   RideRequsetData,
   RideRequsetNotification,
@@ -32,6 +33,61 @@ export function rideRequestRemainingSec(
     RIDE_REQUEST_TTL_SEC,
     Math.max(0, RIDE_REQUEST_TTL_SEC - elapsedSec),
   );
+}
+
+/**
+ * Validates a `promotion` payload before any of it reaches the driver as a
+ * cash instruction.
+ *
+ * Returns `null` — meaning "render this screen exactly as it renders on a
+ * full-price ride" — unless the split is complete, non-negative, actually
+ * carries a discount, and **adds up**. That last check mirrors the invariant
+ * the server's constructor enforces by deriving `collect_from_rider` through
+ * subtraction; re-checking it here is cheap because the value has crossed a
+ * native JSON-string boundary and been through MMKV since then.
+ *
+ * A driver shown three figures that disagree is worse off than one shown none:
+ * they cannot quote any of them at the roadside. Full price is also the safe
+ * fallback — the driver never under-collects, and settlement still credits them
+ * the full fare either way.
+ */
+export function normalizeDriverFareSplit(
+  raw: unknown,
+): DriverFareSplit | null {
+  if (!raw || typeof raw !== "object") return null;
+  const split = raw as Partial<DriverFareSplit>;
+
+  const figures = [
+    split.collect_from_rider,
+    split.you_earn,
+    split.platform_covers,
+  ];
+  if (
+    figures.some(
+      (value) => typeof value !== "number" || !Number.isFinite(value),
+    )
+  ) {
+    return null;
+  }
+
+  const collect_from_rider = split.collect_from_rider as number;
+  const you_earn = split.you_earn as number;
+  const platform_covers = split.platform_covers as number;
+
+  if (collect_from_rider < 0 || you_earn < 0 || platform_covers < 0) {
+    return null;
+  }
+  // Nothing is being funded, so the split says nothing the fare does not.
+  if (platform_covers === 0) return null;
+  if (collect_from_rider + platform_covers !== you_earn) return null;
+
+  return {
+    collect_from_rider,
+    you_earn,
+    platform_covers,
+    promotion_id: split.promotion_id,
+    settled: split.settled === true,
+  };
 }
 
 export function parseRideRequestData({

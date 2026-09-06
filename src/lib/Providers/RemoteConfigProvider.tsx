@@ -64,6 +64,7 @@ import {
 } from "react-native";
 
 import { setFileBaseUrl } from "../../utils/url";
+import { isFloatingAssistantEnabled } from "../floatingAssistant/flags";
 
 // ─── Config shape ────────────────────────────────────────────────────────────
 
@@ -105,10 +106,16 @@ export function RemoteConfigProvider({ children }: { children: ReactNode }) {
       // and use the compile-time dev defaults (BuildConfig / DEFAULTS).
       if (__DEV__) {
         DEFAULTS.FILE_BASE_URL =
-          "https://unlimited-demotion-talon.ngrok-free.dev/";
+          "https://nymphaeaceous-viscometrically-freeda.ngrok-free.dev/";
         setFileBaseUrl(DEFAULTS.FILE_BASE_URL);
         // Pass empty strings so native keeps its BuildConfig debug defaults.
         NativeModules.AppConfig?.update("", DEFAULTS.API_BASE_URL, "");
+        // The overlay bubble can be started headless by BootReceiver before any
+        // JS runs, so native holds its own copy of the flag. Resolved through the
+        // same helper as every JS caller, so there is one definition of "on".
+        NativeModules.AppConfig?.setFloatingAssistantEnabled(
+          isFloatingAssistantEnabled(),
+        );
         setConfig(DEFAULTS);
         return;
       }
@@ -174,6 +181,12 @@ export function RemoteConfigProvider({ children }: { children: ReactNode }) {
           rc.getValue("GRPC_SERVER_URL").asString(),
           loaded.API_BASE_URL,
           rc.getValue("LOCATION_UPDATE_ENDPOINT").asString(),
+        );
+        // Read AFTER fetchAndActivate() so the freshly activated value is used.
+        // Not pushed on the catch path below: Firebase being unreachable must not
+        // clobber the last known good flag, exactly as the URLs behave.
+        NativeModules.AppConfig?.setFloatingAssistantEnabled(
+          isFloatingAssistantEnabled(),
         );
 
         setConfig(loaded);

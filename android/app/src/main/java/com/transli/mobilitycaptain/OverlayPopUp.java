@@ -25,6 +25,8 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.interpolator.view.animation.FastOutLinearInInterpolator;
 
+import com.transli.mobilitycaptain.bubble.RideBubbleService;
+
 public class OverlayPopUp extends Service {
 
     private static final String TAG = "OverlayPopUp";
@@ -62,11 +64,16 @@ public class OverlayPopUp extends Service {
     public void onCreate() {
         super.onCreate();
         registerOverlayPopUpToWindowManager();
+        // This card is the driver's decision surface; the bubble stands down
+        // rather than competing with it for the same screen.
+        RideBubbleService.setOfferCardVisible(getApplicationContext(), true);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        // Card dismissed, accepted or expired — the bubble can come back.
+        RideBubbleService.setOfferCardVisible(getApplicationContext(), false);
         mainHandler.removeCallbacksAndMessages(null);
         if (windowManager != null && popUpView != null) {
             windowManager.removeView(popUpView);

@@ -27,13 +27,17 @@ import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
 import { themes } from "~/ui/theme/theme_utils";
 import { height, width } from "~/utils/metrics/dimm";
-import { rideRequestRemainingSec } from "~/utils/rideUtils";
+import {
+  normalizeDriverFareSplit,
+  rideRequestRemainingSec,
+} from "~/utils/rideUtils";
 
 import Avatar from "./Avatar";
 import Icon from "./Icons";
 import ProgressBarTimer from "./RequestTimeout";
 import OfferBanner from "./RideOffer/OfferBanner";
 import OfferFooter from "./RideOffer/OfferFooter";
+import OfferPromotionStrip from "./RideOffer/OfferPromotionStrip";
 import OfferRoute from "./RideOffer/OfferRoute";
 import OfferStatHeader from "./RideOffer/OfferStatHeader";
 import OfferTags from "./RideOffer/OfferTags";
@@ -121,6 +125,14 @@ const RequestNotificationModal = React.forwardRef(
 
     const vc = ride?.data?.vc!;
 
+    // What the rider actually hands over versus what this ride pays. Null on a
+    // full-price ride, and also null if the figures fail to reconcile — see
+    // `normalizeDriverFareSplit`.
+    const promotion = useMemo(
+      () => normalizeDriverFareSplit(ride?.data?.promotion),
+      [ride?.data?.promotion],
+    );
+
     const onAcceptRideRequest = useCallback(async () => {
       closeModal();
       // Handled in-app — drop the native slot so a later foreground cannot
@@ -141,6 +153,12 @@ const RequestNotificationModal = React.forwardRef(
       // Persist the server-locked pickup (approach) fare onto the ride so the
       // end-ride breakdown can surface it. Server is authoritative here.
       ride_data.data.pickup_fare = accepted?.pickup_fare ?? 0;
+      // The accept response is the newer answer, so it wins outright —
+      // including when it is absent. A reservation released between offer and
+      // accept must not leave a stale discount telling the driver to collect
+      // less than they are owed; that is money out of their pocket, whereas
+      // quoting full price costs them nothing.
+      ride_data.data.promotion = accepted?.promotion;
       setRide(ride_data);
       rideStore.set(["ride"], {
         ride: ride_data,
@@ -211,11 +229,12 @@ const RequestNotificationModal = React.forwardRef(
           >
             <OfferBanner />
 
-            <View style={[atoms.px_md, atoms.pt_md]}>
+            <View style={[atoms.px_md, atoms.pt_md, atoms.gap_sm]}>
               <OfferStatHeader
                 fare={ride?.data?.fare ?? 0}
                 distanceKm={ride?.data?.distance ?? 0}
               />
+              <OfferPromotionStrip split={promotion} />
             </View>
 
             <ProgressBarTimer

@@ -1,11 +1,15 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { DeviceEventEmitter, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Icon from "~/components/Icons";
 import RnText from "~/components/RnText";
 import { RnView, RnAnimatedView } from "~/components/RnView";
-import { useConfirmCollectedCash, useRideFare } from "~/hooks/useRideApi";
+import {
+  useConfirmCollectedCash,
+  useDriverFareBreakdown,
+  useRideFare,
+} from "~/hooks/useRideApi";
 import { rideStore } from "~/lib/store";
 import { NavigationProps } from "~/navigation/types";
 import { s } from "~/styles/Common-Styles";
@@ -14,7 +18,8 @@ import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
 import { themes } from "~/ui/theme/theme_utils";
 import { width } from "~/utils/metrics/dimm";
-import { formatPrice } from "~/utils/metrics/numbers";
+import { formatPrice, formatWholeKes } from "~/utils/metrics/numbers";
+import { normalizeDriverFareSplit } from "~/utils/rideUtils";
 
 export function CollectCashAndConfirmRideEnded({
   navigation,
@@ -23,7 +28,21 @@ export function CollectCashAndConfirmRideEnded({
   const { colors, fonts } = useAppTheme();
   const { fare, ride_id } = route.params;
   const { breakdown, total } = useRideFare(ride_id);
+  const { data: fareSplit } = useDriverFareBreakdown(ride_id);
   const { top } = useSafeAreaInsets();
+
+  // The server's split is authoritative — it re-prices against the live fare,
+  // which the offer-time copy cannot do once a stop has been added. That cached
+  // copy is only the fallback for a failed request; null from both means this
+  // is an ordinary full-price ride and the screen renders as it always has.
+  const split = useMemo(
+    () =>
+      normalizeDriverFareSplit(fareSplit) ??
+      normalizeDriverFareSplit(
+        (rideStore.get(["ride"]) as any)?.ride?.data?.promotion,
+      ),
+    [fareSplit],
+  );
 
   // Fall back to the route-param fare until the snapshot loads (or if it fails).
   const totalFare = total || fare;
@@ -42,6 +61,11 @@ export function CollectCashAndConfirmRideEnded({
   const { mutateAsync: collectedCash } = useConfirmCollectedCash();
 
   const handlePaymentConfirmation = useCallback(async () => {
+    // `is_discounted`/`discount` are the DRIVER-granted discount and must stay
+    // zero here even on a promoted ride. They feed the driver's own earnings
+    // report; putting Sitwego's marketing spend in them would double-count the
+    // promotion, which the backend flags as `tag=double_discount`. The
+    // platform's side is already recorded server-side against the ride.
     await collectedCash({ ride_id, is_discounted: false, discount: 0 });
     rideStore.remove(["overtimeCharge"]);
     navigation.push("RatingScreen", { rideId: ride_id, riderName: "" });
@@ -49,14 +73,7 @@ export function CollectCashAndConfirmRideEnded({
   }, [collectedCash, navigation, ride_id]);
   return (
     <RnAnimatedView style={[styles.container, { paddingTop: top }]}>
-      <RnView
-        style={[
-          styles.card,
-          {
-            borderColor: themes.bg_900,
-          },
-        ]}
-      >
+      <RnView style={[styles.card]}>
         <RnText
           style={[
             atoms.text_xs,
@@ -99,6 +116,34 @@ export function CollectCashAndConfirmRideEnded({
 
         <RnView style={[styles.divider, { borderColor: themes.bg_900 }]} />
 
+        {/* Every figure below comes from the same server-computed split, so the
+            three of them reconcile with each other by construction. Mixing in
+            the fare snapshot's total here would risk showing a discount that
+            does not subtract to the amount printed underneath it. */}
+        {split ? (
+          <RnView style={styles.breakdownRow}>
+            <RnText
+              style={[
+                atoms.text_sm,
+                {
+                  fontFamily: fonts.regular.fontFamily,
+                  color: colors.lightGray,
+                },
+              ]}
+            >
+              Sitwego promotion
+            </RnText>
+            <RnText
+              style={[
+                atoms.text_sm,
+                { fontFamily: fonts.bold.fontFamily, color: themes.green_500 },
+              ]}
+            >
+              −{formatWholeKes(split.platform_covers)} Ksh
+            </RnText>
+          </RnView>
+        ) : null}
+
         <RnView style={styles.totalRow}>
           <RnView style={styles.totalLabel}>
             <Icon
@@ -122,9 +167,44 @@ export function CollectCashAndConfirmRideEnded({
           <RnText
             style={[atoms.text_xl, { fontFamily: fonts.heavy.fontFamily }]}
           >
-            {formatPrice(totalFare)} Ksh
+            {split
+              ? `${formatWholeKes(split.collect_from_rider)} Ksh`
+              : `${formatPrice(totalFare)} Ksh`}
           </RnText>
         </RnView>
+
+        {/* The driver's earnings are unchanged by the discount (invariant D1),
+            so this line has to be on screen next to the smaller cash figure —
+            otherwise the promotion reads as a pay cut. */}
+        {split ? (
+          <RnView style={styles.totalRow}>
+            <RnView style={styles.totalLabel}>
+              <Icon
+                name="Wallet"
+                size={20}
+                strokeWidth={2}
+                color={colors.lightGray}
+              />
+              <RnText
+                style={[
+                  atoms.text_sm,
+                  {
+                    fontFamily: fonts.regular.fontFamily,
+                    color: colors.lightGray,
+                  },
+                ]}
+              >
+                You earn
+              </RnText>
+            </RnView>
+            <RnText
+              style={[atoms.text_lg, { fontFamily: fonts.bold.fontFamily }]}
+            >
+              {formatWholeKes(split.you_earn)} Ksh
+            </RnText>
+          </RnView>
+        ) : null}
+
         <RnView style={[styles.note, { backgroundColor: themes.green_975 }]}>
           <Icon
             name="ShieldCheck"
@@ -142,8 +222,19 @@ export function CollectCashAndConfirmRideEnded({
               },
             ]}
           >
-            100% fare is collected in cash. No deductions or commissions are
-            applied.
+            {/* The stock reassurance is contradicted by the screen it sits on
+                once a promotion applies — the driver is being asked to collect
+                less than the fare. Still no deduction, though, which is the
+                part that actually reassures. */}
+            {split
+              ? `Sitwego is funding ${formatWholeKes(
+                  split.platform_covers,
+                )} Ksh of this ride. You still earn the full ${formatWholeKes(
+                  split.you_earn,
+                )} Ksh — the ${formatWholeKes(
+                  split.platform_covers,
+                )} Ksh goes into your Sitwego wallet, ready to withdraw to M-Pesa.`
+              : "100% fare is collected in cash. No deductions or commissions are applied."}
           </RnText>
         </RnView>
       </RnView>
@@ -196,7 +287,6 @@ const styles = StyleSheet.create({
   card: {
     width: "92%",
     borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     gap: 14,
     marginBottom: 20,
@@ -227,8 +317,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 8,
     borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   noteText: {
     flex: 1,

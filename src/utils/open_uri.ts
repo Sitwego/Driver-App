@@ -1,5 +1,16 @@
 import { Linking, Alert } from "react-native";
 
+/**
+ * The number driver support answers on.
+ *
+ * Shared rather than repeated per screen: a driver who is told one number
+ * during onboarding and a different one when a document is rejected has no way
+ * to know which is current.
+ *
+ * TODO: replace with the real driver-support number (or wire to config/env).
+ */
+const SUPPORT_PHONE = "+254780526523";
+
 const makePhoneCall = (phoneNumber: string) => {
   const url = `tel:${phoneNumber}`;
   Linking.canOpenURL(url)
@@ -36,4 +47,4 @@ const openWhatsApp = (phoneNumber: string, message = "") => {
     .catch((err) => console.error("An error occurred", err));
 };
 
-export { makePhoneCall, openWhatsApp };
+export { SUPPORT_PHONE, makePhoneCall, openWhatsApp };

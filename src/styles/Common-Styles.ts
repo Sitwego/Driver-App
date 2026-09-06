@@ -206,7 +206,7 @@ export const s = StyleSheet.create({
   },
   flexDirectionRow: { flexDirection: "row", gap: 4, alignItems: "center" },
   absoluteFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   // position
   absolute: { position: "absolute" },

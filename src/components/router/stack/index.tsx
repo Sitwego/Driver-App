@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import React from "react";
+
 import { AccountMenuScreen } from "~/Screens/AccountMenuScreen";
-import { nativeStackNavigationWithAuth } from "~/navigation/nativeStackNavigationWithAuth";
 import PaymentScreen from "~/Screens/PaymentScreen";
+import { SubscriptionActiveManagementScreen } from "~/Screens/SubscriptionActiveManagementScreen";
 import { SubscriptionOverviewScreen } from "~/Screens/SubscriptionOverviewScreen";
 import { SubscriptionPlanDetailsScreen } from "~/Screens/SubscriptionPlanDetailsScreen";
-import { SubscriptionActiveManagementScreen } from "~/Screens/SubscriptionActiveManagementScreen";
+import { SupportButton } from "~/components/SupportButton";
+import { nativeStackNavigationWithAuth } from "~/navigation/nativeStackNavigationWithAuth";
 export const stack = nativeStackNavigationWithAuth();
 export type Stack = typeof stack;
 export function sharedStackScreens(Stack: Stack): React.JSX.Element {
@@ -68,9 +70,32 @@ export function sharedStackScreens(Stack: Stack): React.JSX.Element {
         }
       />
       <Stack.Screen
+        name="VehicleDetails"
+        options={{ headerShown: true, title: "Vehicle Details" }}
+        getComponent={() =>
+          require("~/Screens/VehicleDetailsScreen").VehicleDetailsScreen
+        }
+      />
+      <Stack.Screen
         name="PayOut"
-        options={{ title: "Mpesa Deposit", headerShown: true }}
+        options={{ title: "Discount Payout", headerShown: true }}
         getComponent={() => require("~/Screens/PayOutScreen").PayOutScreen}
+      />
+      <Stack.Screen
+        name="MyDocuments"
+        options={{
+          title: "My Documents",
+          headerShown: true,
+          // A rejection reason cannot cover every case, and this screen is
+          // where a stuck driver ends up — so the way out is on the screen
+          // that told them something was wrong.
+          headerRight: () => (
+            <SupportButton message="Hi👋, I need help with my documents." />
+          ),
+        }}
+        getComponent={() =>
+          require("~/Screens/MyDocumentsScreen").MyDocumentsScreen
+        }
       />
       <Stack.Screen
         options={{}}

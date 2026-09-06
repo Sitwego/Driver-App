@@ -9,6 +9,7 @@ module.exports = {
     "<rootDir>/src/tracking",
     "<rootDir>/src/components/AppBottomSheet",
     "<rootDir>/src/utils",
+    "<rootDir>/src/lib",
   ],
   transform: {
     "^.+\\.[jt]sx?$": [

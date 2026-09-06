@@ -16,6 +16,9 @@ const {
   openOverlaySettings,
   consumePendingRideRequest,
   clearPendingRideRequest,
+  refreshRideBubble,
+  syncRideBubble,
+  consumeBubbleLaunchTarget,
 } = GeoKalmanModule;
 
 const startBackgroundService = (token: string) => {
@@ -48,4 +51,7 @@ export {
   openOverlaySettings,
   consumePendingRideRequest,
   clearPendingRideRequest,
+  refreshRideBubble,
+  syncRideBubble,
+  consumeBubbleLaunchTarget,
 };

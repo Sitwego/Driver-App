@@ -2,6 +2,8 @@ import axios, { Method, AxiosError, RawAxiosRequestHeaders } from "axios";
 import { useCallback } from "react";
 
 import { useConfig } from "~/lib/Providers/RemoteConfigProvider";
+import { isExpiredTokenResponse } from "~/lib/net/isSessionExpired";
+import { notifySessionExpired } from "~/lib/net/sessionExpiry";
 import { useUserState } from "~/lib/state/userState";
 
 export type AxiosOverrides = {
@@ -55,6 +57,13 @@ export const useApiClient = () => {
       } catch (err) {
         clearTimeout(timeout);
         if (err instanceof AxiosError) {
+          // The 90-day token has run out. Reported before the throw so it is
+          // seen even though every caller handles this rejection differently
+          // (or not at all) — this is the one place every authenticated
+          // request passes through.
+          if (isExpiredTokenResponse(err)) {
+            notifySessionExpired();
+          }
           throw { ...err, message: err.response?.data };
         }
         throw { err, message: "unknown error occurred" };

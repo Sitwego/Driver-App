@@ -270,3 +270,181 @@ export function useRateRider() {
     },
   });
 }
+
+// ─── Wallet & payouts ─────────────────────────────────────────────────────────
+
+/**
+ * The driver's wallet — where money Sitwego owes them accumulates.
+ *
+ * Two things land here: referral rewards, and the platform's share of every
+ * discounted ride they drove (`reference: "promotion_credit"`). It used to be
+ * neither — a promotion credit was netted off the subscription bill, which is
+ * not the same as being paid.
+ */
+export type WalletResponse = {
+  balance: number | string;
+  currency: string;
+};
+
+export type WalletTransaction = {
+  id: string;
+  /** Signed: positive is money in, negative is a withdrawal. */
+  amount: number | string;
+  balance_after: number | string;
+  /** e.g. `promotion_credit`, `referral_reward`, `payout`, `payout_reversal`. */
+  reference: string;
+  reference_id: string | null;
+  created_at: string;
+};
+
+export type PayoutState =
+  | "requested"
+  | "acked"
+  | "paid"
+  | "failed"
+  | "timed_out";
+
+export type DriverPayout = {
+  id: string;
+  amount: number | string;
+  msisdn: string;
+  state: PayoutState;
+  mpesa_receipt_number: string | null;
+  result_desc: string | null;
+  requested_at: string;
+  completed_at: string | null;
+};
+
+export function useDriverWallet() {
+  const { fetcher } = useApiClient();
+  return useQuery<WalletResponse>({
+    queryKey: ["driver-wallet"],
+    queryFn: () => fetcher("driver/wallet"),
+  });
+}
+
+export function useWalletTransactions(limit = 20) {
+  const { fetcher } = useApiClient();
+  return useQuery<WalletTransaction[]>({
+    queryKey: ["driver-wallet-transactions", limit],
+    queryFn: () => fetcher(`driver/wallet/transactions?limit=${limit}`),
+  });
+}
+
+export function usePayoutHistory(limit = 20) {
+  const { fetcher } = useApiClient();
+  return useQuery<DriverPayout[]>({
+    queryKey: ["driver-payouts", limit],
+    queryFn: () => fetcher(`driver/wallet/payouts?limit=${limit}`),
+  });
+}
+
+/**
+ * How far a ride's discount has got on its way to the driver.
+ *
+ * `in_transit` is deliberately not `paid_out`: a withdrawal that has been
+ * requested has left the wallet but can still fail and come back, so telling a
+ * driver they have been paid for it would be a promise the server has not made.
+ *
+ * `settled_off_bill` only appears on old rides, from the superseded model where
+ * a discount was netted off the subscription bill instead of paid out.
+ */
+export type CreditStatus =
+  | "awaiting_payout"
+  | "in_transit"
+  | "paid_out"
+  | "settled_off_bill";
+
+/** A completed ride whose customer paid a discounted fare. */
+export type DiscountedRide = {
+  ride_id: string;
+  /** The full, pre-discount fare — what the driver EARNED (invariant D1). */
+  fare: number | string;
+  /** The platform's share: what Sitwego owes back for this ride. */
+  discount: number | string;
+  currency: string;
+  /** ISO timestamp. */
+  created_at: string;
+  /** Kilometres. */
+  estimated_distance: number | null;
+  /** Seconds. */
+  estimated_duration: number | null;
+  to_ward: string | null;
+  to_city: string | null;
+  status: CreditStatus;
+};
+
+/**
+ * Counts across the driver's whole history, not just the page — a figure
+ * derived from `rides.length` would shrink as they scrolled.
+ */
+export type DiscountedRidesSummary = {
+  total_rides: number;
+  /** Rides whose share is still in the wallet: the "not yet compensated" count. */
+  awaiting_payout: number;
+  in_transit: number;
+  paid_out: number;
+  /** Sum of everything not yet in the driver's hands. */
+  total_discount: number | string;
+  currency: string;
+};
+
+export type DiscountedRidesResponse = {
+  summary: DiscountedRidesSummary;
+  rides: DiscountedRide[];
+};
+
+/**
+ * The discounted rides behind the wallet balance.
+ *
+ * Note this returns rides that have ALREADY been paid out, marked as such. A
+ * driver who withdraws should not watch the record of what the money was for
+ * disappear along with it.
+ */
+export function useDiscountedRides(limit = 50) {
+  const { fetcher } = useApiClient();
+  return useQuery<DiscountedRidesResponse>({
+    queryKey: ["driver-discounted-rides", limit],
+    queryFn: () => fetcher(`driver/wallet/discounted-rides?limit=${limit}`),
+  });
+}
+
+export type WithdrawResponse = {
+  payout_id: string;
+  amount: number | string;
+  /** Masked, e.g. `*********678`. */
+  msisdn: string;
+  state: string;
+  message: string;
+};
+
+/**
+ * Withdraw wallet money to M-Pesa.
+ *
+ * Note the body carries **only an amount**. The destination is the driver's own
+ * verified profile number, read server-side — a client-supplied payout number
+ * would let anyone who got hold of a token redirect the money. Any UI offering
+ * to edit it would be lying about what the server does.
+ *
+ * Retries are deliberately off. This request moves real money, and a retry of a
+ * request that actually succeeded but whose response was lost would be refused
+ * server-side (one payout in flight at a time) but still shows the driver an
+ * error for a withdrawal that worked.
+ */
+export function useWithdrawFromWallet() {
+  const { makeApiCall } = useApiClient();
+  return useMutation<WithdrawResponse, Error, { amount: number }>({
+    mutationFn: async ({ amount }) =>
+      await makeApiCall<WithdrawResponse>({
+        url: "driver/wallet/withdraw",
+        method: "POST",
+        data: { amount },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        unmountSignal: new AbortController().signal,
+      }),
+    retry: false,
+  });
+}

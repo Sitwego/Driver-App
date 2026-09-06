@@ -1,4 +1,5 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollView } from "react-native-gesture-handler";
 import { Checkbox } from "expo-checkbox";
 import { Image } from "expo-image";
 import Icon from "~/components/Icons";
@@ -9,9 +10,14 @@ import { s } from "~/styles/Common-Styles";
 import { atoms } from "~/ui/theme/atoms";
 import { themes } from "~/ui/theme/theme_utils";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useUserState } from "~/lib/state/userState";
 import { vehicleCategoryStore } from "~/lib/store";
+import { getCategoryFromPlanId } from "~/utils/subscription";
+import {
+  getVehicleHeroImage,
+  normalizeVehicleCategory,
+} from "~/utils/vehicleImage";
 
 export function VehicleAndCategoriesScreen({ navigation, route }: any) {
   const { colors, fonts } = useAppTheme();
@@ -26,6 +32,15 @@ export function VehicleAndCategoriesScreen({ navigation, route }: any) {
     // If no categories are available take first category from the data
     return [data.categories[0]];
   });
+
+  // Keep the artwork here in step with the detail screen: a boda rider should
+  // not see a car on this screen and a motorcycle on the next one.
+  const category = useMemo(
+    () =>
+      normalizeVehicleCategory(data?.vehicle_type) ??
+      (driver.plan_id ? getCategoryFromPlanId(driver.plan_id) : "Taxi"),
+    [data?.vehicle_type, driver.plan_id],
+  );
 
   const handleCheckBox = useCallback((value: string) => {
     setSelectedCategories((prev) => {
@@ -42,7 +57,15 @@ export function VehicleAndCategoriesScreen({ navigation, route }: any) {
     });
   }, []);
   return (
-    <RnView style={[s.flex1, s.px16]}>
+    <ScrollView
+      style={[s.flex1]}
+      contentContainerStyle={[
+        s.px16,
+        // The category list grows with the driver's approved categories, so the
+        // last row needs clearance from the gesture bar rather than sitting on it.
+        { paddingBottom: inssts.bottom + 24 },
+      ]}
+    >
       <RnView
         style={[
           s.pb20,
@@ -92,9 +115,11 @@ export function VehicleAndCategoriesScreen({ navigation, route }: any) {
           ]}
         >
           <Image
-            source={require("../../assets/images/ny_ic_car.png")}
+            source={getVehicleHeroImage(category)}
             style={{ flex: 1, height: null, width: null }}
-            contentFit="cover"
+            // "contain" rather than "cover": the bike and auto art is top-view
+            // and square-ish, so cover would crop it to a sliver.
+            contentFit="contain"
             accessible={true} // Must set for `accessibilityLabel` to work
             accessibilityIgnoresInvertColors
             accessibilityLabel={""}
@@ -102,6 +127,9 @@ export function VehicleAndCategoriesScreen({ navigation, route }: any) {
         </RnView>
       </RnView>
       <PressableWithFeedBack
+        accessibilityRole="button"
+        accessibilityLabel="See vehicle details"
+        onPress={() => navigation.push("VehicleDetails", { vehicle: data })}
         style={[
           s.w100pct,
           s.px10,
@@ -128,7 +156,9 @@ export function VehicleAndCategoriesScreen({ navigation, route }: any) {
           color={colors.lightGray}
         />
       </PressableWithFeedBack>
-      <RnView style={[s.flex1, {}]}>
+      {/* No flex:1 here — inside a ScrollView's content container it fights the
+          intrinsic height the scroll view measures from. */}
+      <RnView>
         <RnView style={[s.mt20]}>
           <RnText
             style={[atoms.text_xl, { fontFamily: fonts.heavy.fontFamily }]}
@@ -178,6 +208,6 @@ export function VehicleAndCategoriesScreen({ navigation, route }: any) {
           </RnView>
         </RnView>
       </RnView>
-    </RnView>
+    </ScrollView>
   );
 }

@@ -4,7 +4,7 @@ import { useLinkBuilder, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { PressableScale } from "pressto";
 import * as React from "react";
-import { Alert, AppState, DeviceEventEmitter, View } from "react-native";
+import { AppState, DeviceEventEmitter, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
@@ -23,12 +23,12 @@ import { useGoOnline, useGoOffline } from "~/hooks/apis";
 import { useIsdriverOnline } from "~/hooks/useIsdriverOnline";
 import { useSubscriptionModal } from "~/lib/Providers/SubscriptionProvider";
 import { useRideRequest } from "~/lib/Providers/UseRideRequestProvider";
+import { OverlayPermissionService } from "~/lib/floatingAssistant/overlayPermission";
 import {
-  canDrawOverlays,
   isGeokalmanServiceRunning,
-  openOverlaySettings,
   startBackgroundService,
   stopGeokalmanService,
+  syncRideBubble,
 } from "~/lib/native";
 import { useUserState } from "~/lib/state/userState";
 import { nativeStackNavigationWithAuth } from "~/navigation/nativeStackNavigationWithAuth";
@@ -136,6 +136,15 @@ function TabBar({ state, descriptors, navigation }: any) {
       if (!cancelled && !togglingRef.current) {
         setOnduty(online);
       }
+      // "Appear on top" has no grant callback, so a driver who enabled it in
+      // Settings and swiped back would otherwise see no floating assistant until
+      // the next shift. Idempotent, and native starts it only when actually
+      // online — this also covers the reverse, revoked while online.
+      try {
+        syncRideBubble();
+      } catch {
+        // Bridge unavailable — nothing to sync.
+      }
     };
     syncFromNative();
     const sub = AppState.addEventListener("change", (status) => {
@@ -208,17 +217,14 @@ function TabBar({ state, descriptors, navigation }: any) {
       setOnduty(state);
       try {
         if (state) {
-          if (!canDrawOverlays()) {
-            Alert.alert(
-              "Permission required",
-              "Mobility Captain needs to display ride requests over other apps. Tap 'Open settings', enable 'Allow display over other apps', then go online again.",
-              [
-                { text: "Not now", style: "cancel" },
-                { text: "Open settings", onPress: openOverlaySettings },
-              ],
-            );
-            throw new Error("overlay_permission_denied");
-          }
+          // Offer the floating assistant, once, and carry on regardless.
+          //
+          // This used to throw and revert the toggle, making "appear on top" a
+          // hard requirement for working at all. It is not: ride requests reach
+          // the driver through push and the in-app modal whether or not any
+          // overlay can be drawn. A driver who declines loses the floating
+          // assistant and the over-other-apps request card, and nothing else.
+          OverlayPermissionService.promptOnce();
           console.log("Going online with location...", state);
           await goOnline({
             score: Number(userState.rating ?? 0),

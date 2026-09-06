@@ -2,7 +2,7 @@ import React from "react";
 import type { TextInputProps, TextProps as RNTextProps } from "react-native";
 import { StyleSheet, TextInput } from "react-native";
 // import Animated, {
-//   AnimateProps,
+//   AnimatedProps,
 //   SharedValue,
 //   useAnimatedProps,
 // } from "react-native-reanimated";
@@ -16,7 +16,7 @@ import { StyleSheet, TextInput } from "react-native";
 
 // interface TextProps extends Omit<TextInputProps, "value" | "style"> {
 //   text: SharedValue<string>;
-//   style?: AnimateProps<RNTextProps>["style"];
+//   style?: AnimatedProps<RNTextProps>["style"];
 // }
 
 // const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
@@ -43,7 +43,7 @@ import { StyleSheet, TextInput } from "react-native";
 
 // export default ReText;
 import Animated, {
-  AnimateProps,
+  AnimatedProps,
   SharedValue,
   useAnimatedProps,
 } from "react-native-reanimated";
@@ -58,7 +58,7 @@ Animated.addWhitelistedNativeProps({ text: true });
 
 interface TextProps extends Omit<TextInputProps, "value" | "style"> {
   text: SharedValue<string>;
-  style?: AnimateProps<RNTextProps>["style"];
+  style?: AnimatedProps<RNTextProps>["style"];
 }
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
