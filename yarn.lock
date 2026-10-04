@@ -3160,10 +3160,10 @@
   dependencies:
     use-sync-external-store "^1.5.0"
 
-"@lodev09/react-native-true-sheet@^3.11.12":
-  version "3.11.12"
-  resolved "https://registry.yarnpkg.com/@lodev09/react-native-true-sheet/-/react-native-true-sheet-3.11.12.tgz#4ddbb5621ab5f23bcd20d90967b1773543fa8d50"
-  integrity sha512-eL7mfUw0p3dxqXKqck3k7H2Ja6UHGbPSqbVDRKeANuxZN4xctxF1iFSPYHj0LULVtheqxKBhWBiR4lJ25El57Q==
+"@lodev09/react-native-true-sheet@^3.11.17":
+  version "3.11.17"
+  resolved "https://registry.yarnpkg.com/@lodev09/react-native-true-sheet/-/react-native-true-sheet-3.11.17.tgz#281faf8ee39d94d2c7874c016e460c1e3ccb3498"
+  integrity sha512-YWCDDL6Y8Ibl1hgTQrlre7U6K+qSkvd6WQwmPZmKy9P+1KXGG9tmO8KjMjP9KD/8IrE/Pyug2rSf4LkTYdvURA==
 
 "@nandorojo/galeria@^3.0.3":
   version "3.0.3"

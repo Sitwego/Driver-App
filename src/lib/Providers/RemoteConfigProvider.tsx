@@ -64,7 +64,11 @@ import {
 } from "react-native";
 
 import { setFileBaseUrl } from "../../utils/url";
-import { isFloatingAssistantEnabled } from "../floatingAssistant/flags";
+import {
+  FLOATING_ASSISTANT_DEFAULT,
+  FLOATING_ASSISTANT_FLAG_KEY,
+  isFloatingAssistantEnabled,
+} from "../floatingAssistant/flags";
 
 // ─── Config shape ────────────────────────────────────────────────────────────
 
@@ -84,6 +88,15 @@ const DEFAULTS: AppConfig = {
     ? (process.env.EXPO_PUBLIC_API_BASE_URL_DEV ?? "")
     : (process.env.EXPO_PUBLIC_API_BASE_URL ?? ""),
   FILE_BASE_URL: process.env.EXPO_PUBLIC_FILE_BASE_URL ?? "",
+};
+
+// What Remote Config itself falls back to. Kept separate from DEFAULTS because
+// DEFAULTS is also the React context value and must stay shaped like AppConfig,
+// while Remote Config needs every key it will be asked for — including flags
+// that never reach the context.
+const REMOTE_CONFIG_DEFAULTS: Record<string, string | number | boolean> = {
+  ...DEFAULTS,
+  [FLOATING_ASSISTANT_FLAG_KEY]: FLOATING_ASSISTANT_DEFAULT,
 };
 
 // Dev: always fetch fresh (0 ms minimum interval).
@@ -120,6 +133,22 @@ export function RemoteConfigProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // ── Remote Config defaults ─────────────────────────────────────────
+      // Registered BEFORE App Check, which is the first thing that can throw.
+      // These calls are local — no network — so getValue() resolves to a real
+      // default even when everything after this point fails. Doing it inside the
+      // try below was the bug: an App Check failure meant the defaults were
+      // never registered and every key read back empty.
+      const rc = remoteConfig();
+      try {
+        await rc.setConfigSettings({
+          minimumFetchIntervalMillis: MIN_FETCH_INTERVAL_MS,
+        });
+        await rc.setDefaults(REMOTE_CONFIG_DEFAULTS);
+      } catch {
+        console.warn("RemoteConfigProvider could not register defaults.");
+      }
+
       try {
         // ── App Check ──────────────────────────────────────────────────────
         // Must run before any Firebase service call.
@@ -140,16 +169,6 @@ export function RemoteConfigProvider({ children }: { children: ReactNode }) {
           provider,
           isTokenAutoRefreshEnabled: true,
         });
-
-        // ── Remote Config ──────────────────────────────────────────────────
-        const rc = remoteConfig();
-
-        await rc.setConfigSettings({
-          minimumFetchIntervalMillis: MIN_FETCH_INTERVAL_MS,
-        });
-
-        // Register compile-time fallbacks so getValue() never returns "".
-        await rc.setDefaults(DEFAULTS);
 
         // fetchAndActivate: fetches from Firebase then atomically activates.
         // Returns true if new values were activated, false if cache was used.
@@ -182,13 +201,6 @@ export function RemoteConfigProvider({ children }: { children: ReactNode }) {
           loaded.API_BASE_URL,
           rc.getValue("LOCATION_UPDATE_ENDPOINT").asString(),
         );
-        // Read AFTER fetchAndActivate() so the freshly activated value is used.
-        // Not pushed on the catch path below: Firebase being unreachable must not
-        // clobber the last known good flag, exactly as the URLs behave.
-        NativeModules.AppConfig?.setFloatingAssistantEnabled(
-          isFloatingAssistantEnabled(),
-        );
-
         setConfig(loaded);
         console.log("RemoteConfigProvider loaded config:", loaded);
       } catch {
@@ -199,6 +211,15 @@ export function RemoteConfigProvider({ children }: { children: ReactNode }) {
         // compile-time defaults so the app still works offline.
         setFileBaseUrl(DEFAULTS.FILE_BASE_URL);
         setConfig(DEFAULTS);
+      } finally {
+        // ALWAYS push, on both paths. The bubble is started by a native service
+        // that has no other way to learn the flag, so skipping this on failure
+        // left the feature permanently invisible on any device whose first fetch
+        // did not succeed. After a successful fetch this carries the fetched
+        // value; otherwise it carries the registered default.
+        NativeModules.AppConfig?.setFloatingAssistantEnabled(
+          isFloatingAssistantEnabled(),
+        );
       }
     })();
   }, []);
