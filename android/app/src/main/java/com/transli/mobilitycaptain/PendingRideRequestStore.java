@@ -37,6 +37,13 @@ public final class PendingRideRequestStore {
     private static final String FIELD_DATA = "data";
     private static final String FIELD_RECEIVED_AT = "received_at";
 
+    /**
+     * Mirrors {@code RIDE_REQUEST_TTL_SEC} in src/utils/rideUtils.ts. A JS constant
+     * cannot be read from here, so this is a deliberate duplicate — keep the two
+     * in step if the offer window ever changes.
+     */
+    private static final long TTL_MS = 20_000L;
+
     private PendingRideRequestStore() {
     }
 
@@ -108,6 +115,27 @@ public final class PendingRideRequestStore {
         } catch (Exception e) {
             Log.e(TAG, "Failed to parse pending ride request", e);
             return null;
+        }
+    }
+
+    /**
+     * Whether an offer is sitting in the slot and is still within its window.
+     *
+     * <p>Unlike {@link #consume}, this does not clear anything — the floating ride
+     * assistant only reads. The TTL check is what stops a stale offer pinning the
+     * bubble in its attention state: the slot is only drained when JS comes back
+     * up, so an offer that arrived and expired while the app was closed would
+     * otherwise sit here indefinitely.
+     */
+    public static boolean hasLiveOffer(Context context) {
+        String stored = prefs(context).getString(KEY, null);
+        if (stored == null) return false;
+        try {
+            long receivedAt = new JSONObject(stored).optLong(FIELD_RECEIVED_AT, 0L);
+            return receivedAt > 0 && System.currentTimeMillis() - receivedAt < TTL_MS;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to read pending ride request", e);
+            return false;
         }
     }
 

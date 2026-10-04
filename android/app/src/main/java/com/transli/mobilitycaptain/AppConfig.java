@@ -5,7 +5,7 @@ import android.util.Log;
 import com.tencent.mmkv.MMKV;
 
 /**
- * Single source of truth for runtime-configurable URLs in native code.
+ * Single source of truth for runtime-configurable values in native code.
  *
  * Initialisation order (each layer wins over the previous):
  *   1. BuildConfig — compile-time defaults, separate values for debug / release.
@@ -21,14 +21,28 @@ public final class AppConfig {
     static final String KEY_REST_API_BASE_URL = "REST_API_BASE_URL";
     static final String KEY_LOCATION_UPDATE_ENDPOINT = "LOCATION_UPDATE_ENDPOINT";
     static final String KEY_GRPC_SERVER_URL = "GRPC_SERVER_URL";
+    static final String KEY_FLOATING_ASSISTANT_ENABLED = "FLOATING_ASSISTANT_ENABLED";
 
     private static volatile String restApiBaseUrl = BuildConfig.REST_API_BASE_URL;
     private static volatile String locationUpdateEndpoint = BuildConfig.LOCATION_UPDATE_ENDPOINT;
     private static volatile String grpcServerUrl = BuildConfig.GRPC_SERVER_URL;
 
+    /**
+     * Floating ride assistant (overlay bubble) kill switch.
+     *
+     * <p>Defaults to FALSE and stays false until Remote Config says otherwise, so a
+     * fresh install shows no bubble until the flag is explicitly turned on — and
+     * turning it off in Firebase kills the bubble on the next launch without a
+     * store release.
+     *
+     * <p>Native needs its own copy because {@code BootReceiver} can start GeoKalman
+     * (and therefore the bubble) headless after a reboot, long before any JS runs.
+     */
+    private static volatile boolean floatingAssistantEnabled = false;
+
     private AppConfig() {}
 
-    /** Restore URLs persisted from the last Remote Config fetch. Call after MMKV.initialize(). */
+    /** Restore values persisted from the last Remote Config fetch. Call after MMKV.initialize(). */
     public static void initFromMMKV() {
         MMKV kv = MMKV.mmkvWithID(MMKV_ID, MMKV.SINGLE_PROCESS_MODE);
         String rest = kv.decodeString(KEY_REST_API_BASE_URL);
@@ -37,7 +51,10 @@ public final class AppConfig {
         if (rest != null && !rest.isEmpty()) restApiBaseUrl = rest;
         if (location != null && !location.isEmpty()) locationUpdateEndpoint = location;
         if (grpc != null && !grpc.isEmpty()) grpcServerUrl = grpc;
-        Log.d(TAG, "initFromMMKV grpc=" + grpcServerUrl + " rest=" + restApiBaseUrl);
+        // Absent key => false => no bubble. Fails closed.
+        floatingAssistantEnabled = kv.decodeBool(KEY_FLOATING_ASSISTANT_ENABLED, false);
+        Log.d(TAG, "initFromMMKV grpc=" + grpcServerUrl + " rest=" + restApiBaseUrl
+                + " floatingAssistant=" + floatingAssistantEnabled);
     }
 
     /**
@@ -61,6 +78,22 @@ public final class AppConfig {
         }
         Log.d(TAG, "update grpc=" + grpcServerUrl + " rest=" + restApiBaseUrl);
     }
+
+    /**
+     * Apply the floating-assistant flag pushed from Remote Config.
+     *
+     * <p>Deliberately separate from {@link #update}: that method carries the gRPC and
+     * REST base URLs, and a signature change there would put the whole networking
+     * path in the blast radius of a UI feature flag.
+     */
+    public static void setFloatingAssistantEnabled(boolean enabled) {
+        floatingAssistantEnabled = enabled;
+        MMKV.mmkvWithID(MMKV_ID, MMKV.SINGLE_PROCESS_MODE)
+                .encode(KEY_FLOATING_ASSISTANT_ENABLED, enabled);
+        Log.d(TAG, "setFloatingAssistantEnabled " + enabled);
+    }
+
+    public static boolean isFloatingAssistantEnabled() { return floatingAssistantEnabled; }
 
     public static String getRestApiBaseUrl() { return restApiBaseUrl; }
     public static String getLocationUpdateEndpoint() {

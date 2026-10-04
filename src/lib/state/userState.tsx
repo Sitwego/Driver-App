@@ -10,7 +10,15 @@ import {
   useLogoutDriver,
 } from "~/hooks/useUserApi";
 
+import { showToast } from "~/components/Toast";
+
+import { overlayPermissionStore } from "../floatingAssistant/overlayPermission";
 import { locationPermissionStore } from "../location/LocationPermissionService";
+import { stopEventService, stopGeokalmanService } from "../native";
+import {
+  resetSessionExpiry,
+  setSessionExpiredHandler,
+} from "../net/sessionExpiry";
 import {
   locationStore,
   rideStore,
@@ -117,6 +125,8 @@ export const UserStateProvider: React.FC<React.PropsWithChildren> = ({
         device_id: props.device_id,
       });
       if (response) {
+        // Arm the auto-logout for this new session.
+        resetSessionExpiry();
         setState({
           type: "LOGIN",
           payload: {
@@ -155,6 +165,18 @@ export const UserStateProvider: React.FC<React.PropsWithChildren> = ({
     // Notify backend — fire-and-forget, never block the local logout on failure
     logoutDriver().catch(() => {});
 
+    // Stop the native services BEFORE the stores are wiped: they outlive the JS
+    // context, so a logout that leaves them running means a foreground location
+    // service pushing to the backend with a token nobody holds any more. Until
+    // logout could happen on its own this was invisible, because the only way
+    // out was the offline toggle, which stops the service itself.
+    try {
+      stopGeokalmanService();
+      stopEventService();
+    } catch {
+      // Never block a logout on a native call.
+    }
+
     // Firebase sign out
     getAuth()
       .signOut()
@@ -169,6 +191,9 @@ export const UserStateProvider: React.FC<React.PropsWithChildren> = ({
     // Reset one-shot location-disclosure flags so the next driver on this
     // device sees the permission flow again.
     locationPermissionStore.clearAll();
+    // Same reasoning for the floating assistant: a new driver on a shared device
+    // should get the explanation, not inherit the last one's silent decline.
+    overlayPermissionStore.clearAll();
 
     // Clear React Query in-memory cache and its AsyncStorage mirror
     queryClient.clear();
@@ -177,6 +202,17 @@ export const UserStateProvider: React.FC<React.PropsWithChildren> = ({
     // Update in-memory state — nativeStackNavigationWithAuth will redirect to <LoggedOut />
     setState({ type: "LOGOUT", payload: undefined });
   }, [logoutDriver, queryClient]);
+
+  // An expired token is discovered by whichever request happens to run next,
+  // deep inside the API client, which has no way to reach `logout`. This is the
+  // one place that owns both.
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      showToast("Your session has expired. Please log in again.");
+      void logout();
+    });
+    return () => setSessionExpiredHandler(undefined);
+  }, [logout]);
 
   useEffect(() => {
     if (state.shouldPersist) {

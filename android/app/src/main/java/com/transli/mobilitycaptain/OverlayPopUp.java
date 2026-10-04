@@ -25,6 +25,8 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.interpolator.view.animation.FastOutLinearInInterpolator;
 
+import com.transli.mobilitycaptain.bubble.RideBubbleService;
+
 public class OverlayPopUp extends Service {
 
     private static final String TAG = "OverlayPopUp";
@@ -54,19 +56,49 @@ public class OverlayPopUp extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // A sticky restart after the process was killed redelivers no intent,
+        // so there is no ride to show — don't render an empty card.
+        if (intent == null) {
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
+
+        // The in-app modal already presents the offer while the activity is on
+        // screen; the overlay is only for when the app is minimized or backgrounded.
+        if (isAppInForeground()) {
+            Log.d(TAG, "App in foreground, skipping ride overlay");
+            if (popUpView == null) stopSelf(startId);
+            return START_NOT_STICKY;
+        }
+
+        if (popUpView == null) {
+            registerOverlayPopUpToWindowManager();
+            if (popUpView != null) {
+                // This card is the driver's decision surface; the bubble stands down
+                // rather than competing with it for the same screen.
+                RideBubbleService.setOfferCardVisible(getApplicationContext(), true);
+            }
+        }
         showPopUpRideRequest(intent);
         return START_STICKY;
     }
 
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        registerOverlayPopUpToWindowManager();
+    /**
+     * True only while one of our activities is the visible, top app. The
+     * foreground location/gRPC services and the bubble overlay keep the process
+     * at FOREGROUND_SERVICE/PERCEPTIBLE, so they don't count as foreground here.
+     */
+    private boolean isAppInForeground() {
+        ActivityManager.RunningAppProcessInfo info = new ActivityManager.RunningAppProcessInfo();
+        ActivityManager.getMyMemoryState(info);
+        return info.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        // Card dismissed, accepted or expired — the bubble can come back.
+        RideBubbleService.setOfferCardVisible(getApplicationContext(), false);
         mainHandler.removeCallbacksAndMessages(null);
         if (windowManager != null && popUpView != null) {
             windowManager.removeView(popUpView);

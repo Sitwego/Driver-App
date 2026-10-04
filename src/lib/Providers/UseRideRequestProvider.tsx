@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect } from "react";
-import { AppState } from "react-native";
+import { AppState, DeviceEventEmitter } from "react-native";
 
 import { DriverLocationProvider } from "~/lib/Providers/DriverLocationProvider";
+import { navigate } from "~/navigation/navigation";
 import { RideEvent, RideRequsetNotification } from "~/types/rideRequstTypes";
 import {
   formatedRideData,
@@ -9,9 +10,12 @@ import {
   rideRequestRemainingSec,
 } from "~/utils/rideUtils";
 
+import { routeForBubbleTarget } from "../floatingAssistant/bubbleLaunch";
 import {
+  consumeBubbleLaunchTarget,
   consumePendingRideRequest,
   nativeAppEvents,
+  refreshRideBubble,
   startEventService,
   stopEventService,
 } from "../native";
@@ -209,6 +213,31 @@ export const UseRideRequestProvider: React.FC<React.PropsWithChildren<{}>> = ({
     }
   }, [applyRideRequest]);
 
+  /**
+   * Route a tap on the floating ride assistant.
+   *
+   * The bubble records which screen it was showing and opens the app; the
+   * decision of where to land is made here, because at tap time the activity may
+   * not exist yet. The slot is empty for every other way of opening the app, and
+   * `routeForBubbleTarget` returns null for that — a launcher start must never be
+   * yanked somewhere the driver did not ask for.
+   */
+  const handleBubbleLaunch = useCallback(async () => {
+    try {
+      const target: string | null = await consumeBubbleLaunchTarget();
+      const destination = routeForBubbleTarget(target);
+      if (!destination) return;
+      await navigate(destination.route);
+      if (destination.reopenRideSheet) {
+        // The active-trip UI is a sheet over the map, not a screen. This is the
+        // same event the "Return to Ride" pill in the tab bar fires.
+        DeviceEventEmitter.emit("onReopenRideSheet");
+      }
+    } catch (error) {
+      console.warn("Failed to route floating assistant tap:", error);
+    }
+  }, []);
+
   useEffect(() => {
     const subs = [
       nativeAppEvents.addListener("onRideReqMessage", applyRideRequest),
@@ -224,11 +253,36 @@ export const UseRideRequestProvider: React.FC<React.PropsWithChildren<{}>> = ({
     // On mount covers the cold start from the overlay; on foreground covers a
     // warm resume where the activity was destroyed but the process survived.
     drainPendingRideRequest();
+    // Cold start: the NavigationContainer mounts *below* this provider, so the
+    // navigation ref is not ready yet and navigate() would silently no-op. Same
+    // 500ms the killed-state push tap uses for the identical problem — see
+    // useNotificationHandler.ts.
+    const bubbleLaunchTimer = setTimeout(handleBubbleLaunch, 500);
     const sub = AppState.addEventListener("change", (status) => {
-      if (status === "active") drainPendingRideRequest();
+      if (status === "active") {
+        drainPendingRideRequest();
+        // Warm resume — navigation is already up, so route straight away.
+        handleBubbleLaunch();
+      }
     });
-    return () => sub.remove();
-  }, [drainPendingRideRequest]);
+    return () => {
+      clearTimeout(bubbleLaunchTimer);
+      sub.remove();
+    };
+  }, [drainPendingRideRequest, handleBubbleLaunch]);
+
+  // The one place that tells native the ride projection moved. The bubble reads
+  // the shared ACTIVE_RIDE_DATA store itself, so this carries no payload — it
+  // only says "look again". Keeping it to a single effect is what stops the
+  // native view of ride state drifting from this one.
+  useEffect(() => {
+    try {
+      refreshRideBubble();
+    } catch {
+      // Bridge unavailable (e.g. legacy remote debugging). The bubble repaints
+      // on the next native event regardless.
+    }
+  }, [rideState?.ride, rideStatus]);
 
   const rideStatusApi = React.useMemo(
     () => ({

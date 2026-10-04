@@ -16,6 +16,8 @@ import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 
+import com.transli.mobilitycaptain.bubble.BubbleStateStore;
+import com.transli.mobilitycaptain.bubble.RideBubbleService;
 import com.transli.mobilitycaptain.common.utils.OverlaySettings;
 import com.transli.mobilitycaptain.helpers.ThreadUtils;
 import mad.location.manager.lib.Services.ServicesHelper;
@@ -220,6 +222,49 @@ public class GeoKalmanModule extends ReactContextBaseJavaModule {
         try {
             PendingRideRequestStore.clear(reactApplicationContext);
             promise.resolve(true);
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
+    }
+
+    /**
+     * Repaint the floating ride assistant after a ride-state transition in JS.
+     *
+     * <p>The bubble reads the shared ride store directly, so this carries no
+     * payload — it only says "something changed, look again". Keeping it to a
+     * single JS call site (UseRideRequestProvider) is what stops the projection
+     * drifting from the real state.
+     */
+    @ReactMethod
+    public void refreshRideBubble() {
+        RideBubbleService.refresh(reactApplicationContext);
+    }
+
+    /**
+     * Bring the bubble into line with whether the driver is currently online.
+     *
+     * <p>Needed because the overlay permission has no grant callback: a driver can
+     * go online, decline, flip the toggle in system settings and come back, and
+     * nothing would otherwise start the bubble until the next shift. Also covers
+     * the reverse — permission revoked while online.
+     */
+    @ReactMethod
+    public void syncRideBubble() {
+        if (isGeokalmanServiceRunning()) {
+            RideBubbleService.start(reactApplicationContext);
+        } else {
+            RideBubbleService.stop(reactApplicationContext);
+        }
+    }
+
+    /**
+     * Read and clear the screen a bubble tap asked for. Resolves null when the app
+     * was opened any other way, so a normal launch never gets hijacked.
+     */
+    @ReactMethod
+    public void consumeBubbleLaunchTarget(Promise promise) {
+        try {
+            promise.resolve(BubbleStateStore.consumeLaunchTarget(reactApplicationContext));
         } catch (Exception e) {
             promise.reject("ERROR", e.getMessage());
         }

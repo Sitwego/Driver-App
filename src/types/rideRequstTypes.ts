@@ -27,6 +27,31 @@ type RiderDataInfo = {
   mobile_country_code: string | null;
 };
 
+/**
+ * What the driver collects in cash versus what the driver is paid, as the
+ * server computed it.
+ *
+ * `you_earn` is the FULL fare and is never reduced by a promotion — Sitwego
+ * funds the gap and credits it against the driver's subscription. Never derive
+ * earnings from `collect_from_rider`; that is the mistake this shape exists to
+ * prevent, which is why there is no `discounted_fare` field to reach for.
+ */
+type DriverFareSplit = {
+  /** Cash the rider physically hands over at the end of the trip. */
+  collect_from_rider: number;
+  /** What the driver is paid — the full, undiscounted fare. */
+  you_earn: number;
+  /** `you_earn - collect_from_rider`. Sitwego's share, not a deduction. */
+  platform_covers: number;
+  /** The campaign funding this ride. Absent on a full-price ride. */
+  promotion_id?: string;
+  /**
+   * False while the ride is in flight: the figures are the current best quote
+   * and can still move if the fare does (an added stop reprices the ride).
+   */
+  settled: boolean;
+};
+
 type RideData = {
   distance: number;
   distance_to_pickup: number;
@@ -43,6 +68,8 @@ type RideData = {
   ride_line_str: GeoPoint[] | null;
   driver_to_pickup_line_str: GeoPoint[] | null;
   rider_info: RiderDataInfo | null;
+  /** @see DriverFareSplit — absent on a full-price ride. */
+  promotion?: DriverFareSplit;
   [key: string]: any;
 };
 type RideRequsetData = {
@@ -63,6 +90,8 @@ type RideRequsetData = {
   search_request_valid_till: unknown;
   ride_line_str: [number, number][] | null;
   driver_to_pickup_line_str: [number, number][] | null;
+  /** @see DriverFareSplit — absent on a full-price ride. */
+  promotion?: DriverFareSplit;
 };
 
 type RideRequsetNotification = {
@@ -92,6 +121,7 @@ type RideNotificationType = {
   [key: string]: any;
 };
 export {
+  DriverFareSplit,
   RideData,
   RiderDataInfo,
   Location,

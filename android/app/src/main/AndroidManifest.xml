@@ -110,6 +110,16 @@
             android:exported="false"
             android:permission="android.permission.SYSTEM_ALERT_WINDOW"
             android:stopWithTask="false" />
+        <!-- Floating ride assistant. Same shape as OverlayPopUp above: not exported,
+             guarded by SYSTEM_ALERT_WINDOW, and stopWithTask=false so swiping the
+             app away does not take the bubble down with it. Its lifetime is owned
+             by GeoKalman, which starts and stops it. -->
+        <service
+            android:name=".bubble.RideBubbleService"
+            android:enabled="true"
+            android:exported="false"
+            android:permission="android.permission.SYSTEM_ALERT_WINDOW"
+            android:stopWithTask="false" />
         <service
             android:name=".RpcRideEventService"
             android:enabled="true"

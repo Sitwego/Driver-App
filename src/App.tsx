@@ -34,11 +34,17 @@ const InnerApp = () => {
         await saveTokenToSharedPreferences(token);
       }
     })(state.token || "");
-    const unsubscribeNetInfo = netInfo.subscribeToNetInfo(state.token);
+  }, [state.token]);
+
+  // Connectivity has nothing to do with the session, so it subscribes once for
+  // the app's lifetime. Keying this on the token re-ran NetInfo.configure() and
+  // rebuilt the listener and re-probe timer on every login, refresh and logout.
+  useEffect(() => {
+    const unsubscribeNetInfo = netInfo.subscribeToNetInfo();
     return () => {
       unsubscribeNetInfo();
     };
-  }, [state.token]);
+  }, []);
 
   if (updateCancelled) {
     return (

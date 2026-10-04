@@ -23,6 +23,36 @@ export type ActiveSubscription = {
 } | null;
 
 // ---------------------------------------------------------------------------
+// Vehicle domain types  (used in route params and screen components)
+// ---------------------------------------------------------------------------
+
+/**
+ * A driver's vehicle, as returned by `api/get-driver-vehicle-categories`.
+ *
+ * Only the required fields below are confirmed to come back today — they are
+ * the ones the vehicle list has always read. The rest are captured during
+ * onboarding (see `ControlsContextType["vehicleDetails"]`) but have not been
+ * verified on this response, so they stay optional and every consumer has to
+ * handle them being absent. Promote one to required once the endpoint is known
+ * to send it.
+ */
+export type DriverVehicle = {
+  make: string;
+  model: string;
+  plate_number: string;
+  y_manufacturing: number;
+  categories: string[];
+
+  // ── Unconfirmed on this endpoint — render only when present ────────────
+  vehicle_type?: string;
+  color?: string;
+  capacity?: number;
+  vin?: string;
+  /** Absent is treated as "in use"; only an explicit false demotes the badge. */
+  in_use?: boolean;
+};
+
+// ---------------------------------------------------------------------------
 // Shared stack param list
 // Contains all screens registered in sharedStackScreens()
 // ---------------------------------------------------------------------------
@@ -38,8 +68,11 @@ export type RootStackNavigationType = {
   RatingScreen: RatingScreenParams;
   RatingOverview: { driverId: string };
   AllReviews: { driverId: string };
-  VehicleAndCategoriesScreen: undefined;
+  VehicleAndCategoriesScreen: { data: DriverVehicle };
+  VehicleDetails: { vehicle: DriverVehicle };
   PaymentScreen: undefined;
+  PayOut: undefined;
+  MyDocuments: undefined;
 
   // ── Subscription screens ─────────────────────────────────────────────────
   SubscriptionOverview: {
@@ -89,6 +122,11 @@ export type VehicleAndCategoriesScreenNavigationProp =
     "VehicleAndCategoriesScreen"
   >;
 
+export type VehicleAndCategoriesScreenProps =
+  NavigationProps<"VehicleAndCategoriesScreen">;
+
+export type VehicleDetailsScreenProps = NavigationProps<"VehicleDetails">;
+
 // ---------------------------------------------------------------------------
 // Convenience screen-prop types for RatingScreen
 // ---------------------------------------------------------------------------
@@ -123,3 +161,8 @@ export type SubscriptionActiveManagementScreenProps =
 // Convenience screen-prop types for Payment screen
 // ---------------------------------------------------------------------------
 export type PaymentScreenProps = NavigationProps<"Payment">;
+
+// ---------------------------------------------------------------------------
+// Convenience screen-prop types for the discount payout screen
+// ---------------------------------------------------------------------------
+export type PayOutScreenProps = NavigationProps<"PayOut">;

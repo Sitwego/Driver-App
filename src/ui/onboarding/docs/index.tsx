@@ -10,7 +10,7 @@ import useFileUpload from "~/hooks/useFileUpload";
 import { s } from "~/styles/Common-Styles";
 import { useAppTheme } from "~/ui/theme/ThemeProvider";
 import { atoms } from "~/ui/theme/atoms";
-import { openWhatsApp } from "~/utils/open_uri";
+import { SUPPORT_PHONE, openWhatsApp } from "~/utils/open_uri";
 
 import { OnboardingControls } from "../OnBoardingControls";
 import {
@@ -29,9 +29,6 @@ import { Insurance } from "./Insurance";
 import { KraPin } from "./KraPin";
 import { PsvBadge } from "./PsvBadge";
 import { VehicleInspectionSticker } from "./VehicleInspectionSticker";
-
-// TODO: replace with the real driver-support number (or wire to config/env).
-const SUPPORT_PHONE = "+254743181173";
 
 function isUploaded(doc?: FileUploadResponseType) {
   return !!doc?.id && doc.id.trim() !== "";

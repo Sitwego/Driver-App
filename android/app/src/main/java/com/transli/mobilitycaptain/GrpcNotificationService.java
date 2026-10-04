@@ -14,6 +14,7 @@ import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.facebook.react.bridge.WritableMap;
+import com.transli.mobilitycaptain.bubble.RideBubbleService;
 import com.transli.mobilitycaptain.common.utils.NotificationController;
 
 import org.json.JSONException;
@@ -185,6 +186,11 @@ public class GrpcNotificationService extends Service implements GrpcInterFace {
         MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.silent_notif);
         if (mp != null) mp.start();
 
+        // Repaint the bubble for the new offer. The card above is the decision
+        // surface, so in practice this makes the bubble stand down; it matters on
+        // the path where the card cannot show but the bubble already exists.
+        RideBubbleService.refresh(getApplicationContext());
+
         // JS event only when the bridge is alive
         if (this.eventEmitter == null || this.reactContext == null) return;
         // Dispatch to the JS queue thread to avoid racing with Hermes GC
@@ -233,13 +239,31 @@ public class GrpcNotificationService extends Service implements GrpcInterFace {
         Log.d(TAG, "GRPC Connection Initialized");
     }
 
+    /**
+     * Tell the floating ride assistant whether offers can still reach the driver.
+     *
+     * <p>Only the three conclusive states are forwarded. CONNECTING and IDLE are
+     * transitional; reporting them would make the bubble flap between grey and
+     * green on every ordinary reconnect, which is noise rather than information.
+     */
+    private void reportChannelState(ConnectivityState state) {
+        if (state == ConnectivityState.READY) {
+            RideBubbleService.setChannelReady(getApplicationContext(), true);
+        } else if (state == ConnectivityState.TRANSIENT_FAILURE
+                || state == ConnectivityState.SHUTDOWN) {
+            RideBubbleService.setChannelReady(getApplicationContext(), false);
+        }
+    }
+
     private void watchChannelState(ManagedChannel channel) {
         ConnectivityState state = channel.getState(false);
         Log.d(TAG, "Initial channel state: " + state);
+        reportChannelState(state);
 
         channel.notifyWhenStateChanged(state, () -> {
             ConnectivityState newState = channel.getState(false);
             Log.d(TAG, "Channel state changed to: " + newState);
+            reportChannelState(newState);
 
             if (newState == ConnectivityState.IDLE) {
                 Log.d(TAG, "Channel is idle. Forcing reconnection...");

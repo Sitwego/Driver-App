@@ -47,4 +47,16 @@ public class AppConfigModule extends ReactContextBaseJavaModule {
             RpcChannelManager.resetChannel();
         }
     }
+
+    /**
+     * Push the floating ride assistant (overlay bubble) kill switch from Remote Config.
+     *
+     * <p>Separate from {@link #update} on purpose — that call carries the gRPC and REST
+     * base URLs, and a UI feature flag has no business sharing a signature with them.
+     */
+    @ReactMethod
+    public void setFloatingAssistantEnabled(boolean enabled) {
+        Log.d(TAG, "setFloatingAssistantEnabled called from JS: " + enabled);
+        AppConfig.setFloatingAssistantEnabled(enabled);
+    }
 }

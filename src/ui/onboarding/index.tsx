@@ -29,7 +29,7 @@ export function DriverOnboarding() {
       <OnboardingControlsContext.Provider value={stateCtx}>
         <DocumentModalProvider>
           <OnboardingLayout>
-            {state.activeStep === "vehicle_details" && <VehicleDetails />}
+            {state.activeStep === "vehicle_details" && <VehicleDetails/>}
             {state.activeStep === "docs" && <Docs />}
             {state.activeStep === "finish" && <SubmitData />}
           </OnboardingLayout>

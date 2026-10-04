@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.time.Duration;
+import com.transli.mobilitycaptain.bubble.RideBubbleService;
 import rides_events.Events;
 import rides_events.RideEventServiceGrpc;
 
@@ -156,6 +157,35 @@ public class RpcRideEventService extends Service implements RpcEventInterface {
         WritableMap jsEvent = jsEvent(event);
         if (jsEvent != null) {
             eventEmitter.emit("onRideEvent", jsEvent);
+        }
+        refreshBubbleIfPhaseChanged(event);
+    }
+
+    /**
+     * Nudge the floating ride assistant, but only for events that can actually
+     * change what it shows.
+     *
+     * <p>LOCATION_UPDATE streams continuously for the length of a trip and
+     * FARE_CHANGE and STOP_ADDED do not affect the trip phase, so poking on every
+     * event would mean an ActivityManager query and a set of MMKV reads several
+     * times a second for no visible difference. The bubble must not cost
+     * measurable battery, and this is the one place in the feature that could.
+     *
+     * <p>This is only a nudge. JS owns the ride record, and its own refresh call
+     * lands just after this one with the authoritative value — so a missed nudge
+     * costs nothing while the app is alive, and while it is dead nothing is
+     * writing the record for the bubble to re-read anyway.
+     */
+    private void refreshBubbleIfPhaseChanged(Events.RideEvent event) {
+        switch (event.getEventPayloadCase()) {
+            case RIDE_START:
+            case RIDE_END:
+            case RIDE_CANCEL:
+            case DRIVER_ARRIVED:
+                RideBubbleService.refresh(getApplicationContext());
+                break;
+            default:
+                break;
         }
     }
 

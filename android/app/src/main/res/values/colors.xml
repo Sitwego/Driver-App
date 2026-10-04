@@ -11,4 +11,15 @@
   <color name="popup_divider">#333333</color>
   <color name="popup_accent">#29d9c2</color>
   <color name="popup_tag_exclusive">#0a85ff</color>
+
+  <!-- Floating ride assistant (overlay bubble).
+       Values mirror the JS design tokens in src/ui/theme/theme_utils.ts, which
+       generates them from HSL: bg_950, green_500, primary_500. The lime is the
+       app's existing CTA/money accent (see PayOutScreen.tsx, HomeMenuBar.tsx). -->
+  <color name="bubble_surface">#0f1e24</color>          <!-- bg_950 -->
+  <color name="bubble_state_available">#17e88f</color>  <!-- green_500 -->
+  <color name="bubble_state_attention">#ccff00</color>  <!-- CTA lime -->
+  <color name="bubble_state_trip">#0a85ff</color>       <!-- primary_500 -->
+  <color name="bubble_state_arriving">#29d9c2</color>   <!-- popup_accent -->
+  <color name="bubble_state_unknown">#6b7f88</color>    <!-- muted: never asserts online -->
 </resources>

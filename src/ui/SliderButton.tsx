@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   textContainer: {
-    ...StyleSheet.absoluteFillObject, // Makes this view fill its parent (sliderTrack)
+    ...StyleSheet.absoluteFill, // Makes this view fill its parent (sliderTrack)
     justifyContent: "center",
     alignItems: "center",
     // No zIndex needed here, or zIndex: 0, to be behind the handle

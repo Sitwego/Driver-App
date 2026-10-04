@@ -32,6 +32,7 @@ const HomeMenuBar: React.FC<Props> = ({ onPress }) => {
   const { top } = useSafeAreaInsets();
   const onLoad = useCallback(() => {}, []);
   const navigation = useNavigation<HomeMenuBarNavProp>();
+  // console.log("state", state);
 
   const profileImageUrl = useMemo(
     () =>
@@ -56,6 +57,8 @@ const HomeMenuBar: React.FC<Props> = ({ onPress }) => {
         <RnAnimatedView
           style={[
             HMB_styles.HMB_container_view,
+            s.flexDirectionRow,
+            s.justifyBetween,
             { backgroundColor: colors.lightBackground, top: top + 10 },
           ]}
         >
@@ -118,31 +121,41 @@ const HomeMenuBar: React.FC<Props> = ({ onPress }) => {
           </PressableScale>
         </RnAnimatedView>
       ) : (
-        <RnAnimatedView
+        <Pressable
+          onPress={() => navigation.navigate("MyDocuments")}
           style={[
             HMB_styles.HMB_container_view,
             { backgroundColor: colors.lightBackground, top: top + 10 },
           ]}
         >
-          <RnText style={[atoms.text_sm, { color: colors.lightGray }]}>
-            <Icon
-              name="ClockFading"
-              size={28}
-              color="#CCFF00"
-              strokeWidth={2.5}
-            />
-          </RnText>
-          <Pressable onPress={onPress}>
-            <RnText
-              style={[
-                atoms.text_sm,
-                { color: "#FFD700", fontFamily: fonts.bold.fontFamily },
-              ]}
-            >
-              Review in progress — we’ll notify you soon.
+          <RnView
+            style={[
+              atoms.flex_1,
+              s.centerItem,
+              atoms.gap_sm,
+              { flexDirection: "row" },
+            ]}
+          >
+            <RnText style={[atoms.text_sm, { color: colors.lightGray }]}>
+              <Icon
+                name="ClockFading"
+                size={28}
+                color="#CCFF00"
+                strokeWidth={2.5}
+              />
             </RnText>
-          </Pressable>
-        </RnAnimatedView>
+            <RnView style={[]}>
+              <RnText
+                style={[
+                  atoms.text_sm,
+                  { color: "#FFD700", fontFamily: fonts.bold.fontFamily },
+                ]}
+              >
+                Review in progress — View your documents.
+              </RnText>
+            </RnView>
+          </RnView>
+        </Pressable>
       )}
     </React.Fragment>
   );
@@ -153,12 +166,10 @@ export default memo(HomeMenuBar);
 const HMB_styles = StyleSheet.create({
   HMB_container_view: {
     position: "absolute",
-    flexDirection: "row",
-    zIndex: 999,
+    zIndex: 9999,
     width: "95%",
     alignSelf: "center",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingVertical: 4,
     borderRadius: 16,
     height: 60,

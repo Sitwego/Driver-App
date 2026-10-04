@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Floating ride assistant bubble.
+
+  Deliberately one tap target with nothing inside it to hit: the driver may be
+  moving, so there is no multi-step interaction here (C4). Everything important
+  happens after the tap, in the full app.
+
+  The outer padding is headroom for the attention pulse, which scales the ring
+  slightly beyond its own bounds.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bubbleRoot"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:padding="6dp">
+
+    <!-- 56dp: comfortably above the 48dp minimum tap target, for a gloved thumb (R-B2). -->
+    <View
+        android:id="@+id/bubbleRing"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:background="@drawable/bubble_ring" />
+
+    <ImageView
+        android:id="@+id/bubbleIcon"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_gravity="center"
+        android:contentDescription="@string/bubble_content_description"
+        android:src="@mipmap/ic_launcher_round" />
+
+</FrameLayout>

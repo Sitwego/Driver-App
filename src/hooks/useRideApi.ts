@@ -8,7 +8,7 @@ import {
 } from "~/lib/Providers/UseRideRequestProvider";
 import { useUserState } from "~/lib/state/userState";
 import { locationStore, rideStore } from "~/lib/store";
-import { RideNotificationType } from "~/types/rideRequstTypes";
+import { DriverFareSplit, RideNotificationType } from "~/types/rideRequstTypes";
 import { isNowBeforeOrEqual } from "~/utils/dates/utils";
 import { GeoPoint, getLocationAsync } from "~/utils/geo";
 
@@ -23,6 +23,13 @@ export type AcceptRideRequestResponse = {
   pickup_location: { lat: number; lon: number } | unknown;
   polyline: [number, number][] | null;
   pickup_fare: number;
+  /**
+   * Present when the platform is funding part of this fare. Repeated here
+   * rather than left to the offer payload because the offer may have arrived
+   * before the discount was attached — this is the last point before the driver
+   * starts driving toward a rider who is expecting to pay less.
+   */
+  promotion?: DriverFareSplit;
 };
 
 export function useAcceptRideRequestMutation() {
@@ -325,6 +332,27 @@ export function useRideFare(ride_id: string) {
   }, [query.data, breakdown]);
 
   return { ...query, breakdown, total };
+}
+
+/**
+ * What this driver should collect in cash and what they will earn, straight
+ * from the server.
+ *
+ * The authority for the collect-cash screen. It must be called there rather
+ * than reusing what the offer said, because adding a stop reprices the ride and
+ * moves both numbers — the server re-runs the very same arithmetic settlement
+ * will book, against the live fare.
+ *
+ * Answers for every ride, discounted or not, so there is one code path. It is
+ * driver-only: anyone else on the ride gets a 401.
+ */
+export function useDriverFareBreakdown(ride_id: string) {
+  const { fetcher } = useApiClient();
+  return useQuery<DriverFareSplit>({
+    queryKey: ["driver-fare-breakdown", ride_id],
+    queryFn: () => fetcher(`api/rides/${ride_id}/driver-fare-breakdown`),
+    enabled: !!ride_id,
+  });
 }
 
 export function useCancelRideRequest() {

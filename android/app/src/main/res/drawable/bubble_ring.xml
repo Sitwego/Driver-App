@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bubble surface + state ring.
+
+  The stroke colour is the state indicator and is re-tinted at runtime by
+  RideBubbleService (GradientDrawable#setStroke, which returns the same instance
+  the view is drawing). It starts on the muted "unknown" colour deliberately: the
+  view is inflated before any state has been read, and a green flash would be a
+  claim we cannot back up yet.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/bubble_surface" />
+    <stroke
+        android:width="2dp"
+        android:color="@color/bubble_state_unknown" />
+</shape>

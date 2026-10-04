@@ -17,6 +17,15 @@ import { themes } from "../theme/theme_utils";
 
 const data = [
   {
+    // The only route into the documents screen once onboarding is done. A
+    // driver whose document was rejected is already onboarded, so the
+    // onboarding flow that uploaded it is unreachable to them.
+    title: "My documents",
+    icon: "FileCheck" as const,
+    route: "MyDocuments",
+    subtitle: "Licence, insurance and permits",
+  },
+  {
     title: "Navigation and sounds",
     icon: "Navigation2" as const,
     route: "NavigationAndSoundsScreen",

@@ -41,6 +41,20 @@ let isNetworkStatusInitialized = false;
 let callbackID = 0;
 const reconnectionCallbacks: Record<string, () => void> = {};
 
+/**
+ * Pending back-off timer for a reconnection batch, if one is scheduled.
+ * Tracked so teardown can cancel it — the delay reaches 60 s, far longer than
+ * the throttle window, so an untracked timer outlives the subscription.
+ */
+let pendingReconnectTimeoutID: ReturnType<typeof setTimeout> | null = null;
+
+function cancelPendingReconnection() {
+  if (pendingReconnectTimeoutID !== null) {
+    clearTimeout(pendingReconnectTimeoutID);
+    pendingReconnectTimeoutID = null;
+  }
+}
+
 // ─── Recheck guard ────────────────────────────────────────────────────────────
 
 /** Exported so unit tests can inspect / control internal state */
@@ -83,7 +97,9 @@ function trackConnectionChanges() {
   console.log(
     `[NetworkConnection] Connection changed ${newAmount} time(s) in the last ${diffInHours} hour(s).`,
   );
-  persistConnectionChanges({ startTime: Date.now(), amount: 0 });
+  // The window restarts *at* this change, so it counts as the first one —
+  // resetting to 0 dropped it and undercounted every window after the first.
+  persistConnectionChanges({ startTime: Date.now(), amount: 1 });
 }
 
 /**
@@ -98,7 +114,13 @@ const triggerReconnectionCallbacks = throttle(
       delay = Math.floor(Math.random() * 61_000);
       wasServerDown = false;
     }
-    setTimeout(() => {
+    // Keep at most one batch in flight. The throttle window is 5 s but the
+    // back-off runs to 60 s, so without this a second reconnect inside the
+    // back-off schedules a duplicate batch and both fire.
+    cancelPendingReconnection();
+
+    pendingReconnectTimeoutID = setTimeout(() => {
+      pendingReconnectTimeoutID = null;
       console.log(
         `[NetworkConnection] Firing reconnection callbacks because: ${reason}`,
       );
@@ -149,6 +171,13 @@ function recheckNetworkConnection() {
  * reconnection callbacks when transitioning offline → online.
  */
 function setOfflineStatus(isCurrentlyOffline: boolean, reason = ""): void {
+  // NetInfo emits for plenty of things that are not transitions — signal
+  // strength, cellular details, carrier changes. Counting those as connection
+  // changes made the instability warning below measure event volume rather
+  // than instability, and cost two MMKV writes (each of which notifies every
+  // store listener) on every event.
+  if (isCurrentlyOffline === isOffline) return;
+
   trackConnectionChanges();
 
   if (isCurrentlyOffline && !isOffline) {
@@ -187,61 +216,85 @@ networkStore.addOnValueChangedListener(["shouldForceOffline"], () => {
     setOfflineStatus(true, "shouldForceOffline toggled in storage");
   } else {
     // Re-probe real network state now that force-offline is lifted
-    NetInfo.fetch().then((state) => {
-      const offline = (state.isInternetReachable ?? false) === false;
-      setOfflineStatus(
-        offline || !isServerUp,
-        "NetInfo probed after force-offline lifted",
-      );
-    });
+    NetInfo.fetch()
+      .then((state) => {
+        const offline = (state.isInternetReachable ?? false) === false;
+        setOfflineStatus(
+          offline || !isServerUp,
+          "NetInfo probed after force-offline lifted",
+        );
+      })
+      .catch((err: unknown) => {
+        console.log(
+          "[NetworkConnection] NetInfo.fetch failed after force-offline lifted.",
+          String(err),
+        );
+      });
   }
+});
+
+// ─── NetInfo configuration ────────────────────────────────────────────────────
+//
+// NetInfo.configure() is global library state, not per-listener, so it belongs
+// here rather than inside subscribeToNetInfo — calling it once per subscribe
+// meant every auth-token change reconfigured the library for no reason.
+
+NetInfo.configure({
+  reachabilityMethod: "GET",
+  reachabilityUrl: REACHABILITY_URL,
+  reachabilityRequestTimeout: REACHABILITY_TIMEOUT,
+  reachabilityTest: async (response) => {
+    if (!response.ok) {
+      console.log(
+        `[NetworkConnection] Reachability test failed with status ${response.status} — treating as offline.`,
+      );
+      return false;
+    }
+    try {
+      const json: ResponseJSON = await response.json();
+      if (json.jsonCode !== 200 && isServerUp) {
+        console.log(
+          "[NetworkConnection] Non-200 from reachability — server down.",
+        );
+        isServerUp = false;
+        wasServerDown = true;
+        networkStore.set(["isServerUp"], false);
+      } else if (json.jsonCode === 200 && !isServerUp) {
+        console.log(
+          "[NetworkConnection] 200 from reachability — server back up.",
+        );
+        isServerUp = true;
+        networkStore.set(["isServerUp"], true);
+      }
+      return json.jsonCode === 200;
+    } catch (err: unknown) {
+      // Logged rather than swallowed: a change to the reachability response
+      // shape would otherwise take every install offline with no signal.
+      console.log(
+        "[NetworkConnection] Could not read reachability response — treating as offline.",
+        String(err),
+      );
+      if (isServerUp) {
+        isServerUp = false;
+        networkStore.set(["isServerUp"], false);
+      }
+      wasServerDown = true;
+      return false;
+    }
+  },
 });
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Configures NetInfo and subscribes to connection changes.
+ * Subscribes to connection changes and starts the offline re-probe timer.
+ *
+ * Safe to call once for the app's lifetime — it holds no auth state, so it
+ * does not need re-running when the session changes.
  *
  * @returns Unsubscribe function — call it to clean up listeners and timers
  */
-function subscribeToNetInfo(sessionId?: string): () => void {
-  NetInfo.configure({
-    reachabilityMethod: "GET",
-    reachabilityUrl: REACHABILITY_URL,
-    reachabilityRequestTimeout: REACHABILITY_TIMEOUT,
-    reachabilityTest: async (response) => {
-      if (!response.ok) {
-        console.log(
-          `[NetworkConnection] Reachability test failed with status ${response.status} — treating as offline.`,
-        );
-        return false;
-      }
-      try {
-        const json: ResponseJSON = await response.json();
-        if (json.jsonCode !== 200 && isServerUp) {
-          console.log(
-            "[NetworkConnection] Non-200 from reachability — server down.",
-          );
-          isServerUp = false;
-          wasServerDown = true;
-          networkStore.set(["isServerUp"], false);
-        } else if (json.jsonCode === 200 && !isServerUp) {
-          console.log(
-            "[NetworkConnection] 200 from reachability — server back up.",
-          );
-          isServerUp = true;
-          networkStore.set(["isServerUp"], true);
-        }
-        return json.jsonCode === 200;
-      } catch {
-        isServerUp = false;
-        wasServerDown = true;
-        networkStore.set(["isServerUp"], false);
-        return false;
-      }
-    },
-  });
-
+function subscribeToNetInfo(): () => void {
   const unsubscribeNetInfo = NetInfo.addEventListener((state) => {
     if (!isNetworkStatusInitialized) {
       isNetworkStatusInitialized = true;
@@ -280,6 +333,9 @@ function subscribeToNetInfo(sessionId?: string): () => void {
   return () => {
     clearInterval(recheckIntervalID);
     unsubscribeNetInfo();
+    // A scheduled batch can be up to 60 s out; without this it fires into
+    // consumers that have already torn down.
+    cancelPendingReconnection();
   };
 }
 
@@ -294,6 +350,7 @@ function onReconnect(callback: () => void): () => void {
 }
 
 function clearReconnectionCallbacks() {
+  cancelPendingReconnection();
   for (const key of Object.keys(reconnectionCallbacks)) {
     delete reconnectionCallbacks[key];
   }

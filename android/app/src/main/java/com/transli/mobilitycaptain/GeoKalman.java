@@ -35,6 +35,7 @@ import com.google.gson.JsonSyntaxException;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 import com.tencent.mmkv.MMKV;
+import com.transli.mobilitycaptain.bubble.RideBubbleService;
 import com.transli.mobilitycaptain.common.utils.NetworkApiCalls;
 
 import org.json.JSONArray;
@@ -199,6 +200,18 @@ public class GeoKalman extends Service implements ILogger, LocationServiceInterf
         } else {
             this.startForeground(NOTIFICATION_ID, notification);
         }
+
+        // The floating ride assistant rides this service. Starting it here rather
+        // than from JS is what ties the bubble to the driver actually being online:
+        // this path also runs on a headless BootReceiver resume, where no JS exists
+        // to ask. RideBubbleService no-ops unless the remote flag and the overlay
+        // permission both allow it.
+        try {
+            RideBubbleService.start(getApplicationContext());
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start ride bubble", e);
+        }
+
         return START_STICKY;
     }
 
@@ -222,6 +235,14 @@ public class GeoKalman extends Service implements ILogger, LocationServiceInterf
         } catch (Exception e) {
             Log.i("GrpcNotificationService", "Error stopping Grpc Notification Service" + e);
         }
+        // Going offline, logging out and session expiry all land here, so this is
+        // the single teardown that guarantees no orphaned overlay window.
+        try {
+            RideBubbleService.stop(getApplicationContext());
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to stop ride bubble", e);
+        }
+
         instance = null;
         stopForeground(true);
         stopSelf();
